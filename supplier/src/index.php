@@ -41,6 +41,9 @@ switch ($_SERVER['REQUEST_METHOD']) {
         break;
 }
 
+$json_params = file_get_contents("php://input");
+$requestData["json"] = json_decode($json_params, true);
+
 /*
  * API security
  */

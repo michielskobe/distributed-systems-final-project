@@ -9,3 +9,48 @@ CREATE TABLE authorized_tokens (
 );
 
 INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('test token', 1, 'fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    price DECIMAL(9,2),
+    quantity INT,
+    description TEXT,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO products (name, price, quantity, description) VALUES ('habeja', 420.69, 9, 'Mo how zeh!');
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    token_id INT, 
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
+);
+
+CREATE TABLE reservations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    token_id INT, 
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
+);
+
+CREATE TABLE reservation_tracker (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    amount INT,
+    product_id INT,
+    reservation_id INT,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(product_id) REFERENCES products(id),
+    FOREIGN KEY(reservation_id) REFERENCES reservations(id)
+);
+
+CREATE TABLE order_tracker (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    amount INT,
+    product_id INT,
+    order_id INT,
+    created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(product_id) REFERENCES products(id),
+    FOREIGN KEY(order_id) REFERENCES orders(id)
+);
