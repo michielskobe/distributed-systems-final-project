@@ -1,9 +1,5 @@
 #!/bin/bash
 
-
-echo "Testing example Route:"
-curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -d "name=john" -X POST http://localhost:8069/seller-api/sayhello
-
 echo ""
 echo "Testing list_product Route:"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/list_products
@@ -24,9 +20,17 @@ echo ""
 echo "Testing show_reserve Route:"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/show_reserve
 
-# echo ""
-# echo "Testing commit Route:"
-# curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/commit -d '{"commit_details":[{"reservation_id":"26"}]}'
+echo ""
+echo "Testing commit Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/commit -d '{"commit_details":[{"reservation_id":"28"}, {"reservation_id":"78"}]}'
+
+echo ""
+echo "Testing show_commit Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/show_commit
+
+echo ""
+echo "Testing rollback_commit Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/rollback_commit -d '{"rollback_details":[{"order_id":"7"}]}'
 
 echo ""
 echo "Testing show_commit Route:"
