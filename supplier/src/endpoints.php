@@ -122,6 +122,107 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
 };
 
 /**
+ * the list_products endpoint returns a json containing information about all products available with the seller
+ * * @param array requestData this array must contain a key `commit_details` which has a json containing the commit details
+ */
+$endpoints["commit"] = function(array $requestData, $conn): void{
+    if (isset($requestData["json"]["commit_details"])) {
+      $details = $requestData["json"]["commit_details"];
+      
+      // we have a json with reservation details, we need to do the following:
+      // Make a reservation
+      // try to link items to that reservation 
+
+      // get user id
+      $sql = "SELECT * FROM authorized_tokens WHERE token = '" . $requestData["token"] . "'";
+      $result = mysqli_query($conn, $sql);
+      $user_id = -1;
+
+      if (mysqli_num_rows($result) > 0) {
+        $row = mysqli_fetch_assoc($result);
+        $user_id = $row["id"];
+      } else {
+        echo json_encode("Something went wrong -- CODE: 101");
+        exit;
+      }
+
+      // start a transaction for stuff
+      // If there is any kind of failure during the process, everything will be reverted 
+      mysqli_begin_transaction($conn);
+
+      try {
+        // create order
+        $sql = "INSERT INTO orders(token_id) VALUES (" . $user_id . ")";
+        $ord_id = -1;
+
+        if (mysqli_query($conn, $sql)) {
+          $ord_id = mysqli_insert_id($conn);
+        } else {
+          mysqli_rollback($conn);
+          echo json_encode("Something went wrong -- CODE: 102");
+          exit;
+        }
+
+        // transfer reservation into order
+        foreach ($details as $entry) {
+          $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $entry["reservation_id"];
+          $result = mysqli_query($conn, $sql);
+
+          if (mysqli_num_rows($result) > 0) {
+            // output data of each row
+            while($row = mysqli_fetch_assoc($result)) {
+                           
+              $sql = "INSERT INTO order_tracker (amount, product_id, order_id) VALUES (" . $row["amount"] . ", " . $row["product_id"] . ", " . $ord_id . ")";
+              $res_id = -1;
+
+              if (mysqli_query($conn, $sql)) {
+                $res_id = mysqli_insert_id($conn);
+              } else {
+                mysqli_rollback($conn);
+                echo json_encode("Something went wrong -- CODE: 103");
+                exit;
+              }
+            }
+          } else {
+            mysqli_rollback($conn);
+            echo json_encode("Something went wrong -- CODE: 104");
+            exit;
+          }
+
+          // remove reservation
+          // sql to delete a record
+          $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $entry["reservation_id"];
+
+          if (!mysqli_query($conn, $sql)) {
+            mysqli_rollback($conn);
+            echo json_encode("Something went wrong -- CODE: 105");
+            exit;
+          }
+          $sql = "DELETE FROM reservations WHERE id=" . $entry["reservation_id"];
+
+          if (!mysqli_query($conn, $sql)) {
+            mysqli_rollback($conn);
+            echo json_encode("Something went wrong -- CODE: 106");
+            exit;
+          }
+        }
+
+
+
+        mysqli_commit($conn);
+        echo json_encode(array('order_id' => $ord_id ));
+
+      } catch (mysqli_sql_exception $exception) {
+          mysqli_rollback($conn);
+          echo json_encode("Something went wrong -- CODE: 109");
+          exit;
+      }
+      
+    } else {
+      echo json_encode("Invalid commit details");
+    }
+};
+/**
  * prints a greeting message with the name specified in the $requestData["name"] item.
  * if the variable is empty a default name is used.
  * @param array $requestData this array must contain an item with key "name" 

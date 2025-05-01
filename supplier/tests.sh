@@ -19,3 +19,7 @@ curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: appl
 echo ""
 echo "Testing reserve Route (Invalid product):"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"1", "amount":"2"}, {"id":"200000", "amount":"5"}]}'
+
+echo ""
+echo "Testing commit Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/commit -d '{"commit_details":[{"reservation_id":"26"}]}'
