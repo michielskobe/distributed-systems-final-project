@@ -107,7 +107,10 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
         }
         
         /* If code reaches this point without errors then commit the data in the database */
-        mysqli_commit($conn);
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"008" ));
+          exit;
+        }
         echo json_encode(array('status' => "OK", 'response' =>array('reservation_id' => $res_id )));
 
       } catch (mysqli_sql_exception $exception) {
@@ -254,7 +257,10 @@ $endpoints["commit"] = function(array $requestData, $conn): void{
 
 
 
-        mysqli_commit($conn);
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"108" ));
+          exit;
+        }
         echo json_encode(array('status' => "OK", 'response' =>$orders));
 
       } catch (mysqli_sql_exception $exception) {
@@ -376,7 +382,10 @@ $endpoints["rollback_commit"] = function(array $requestData, $conn): void{
           }
         }
 
-        mysqli_commit($conn);
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"508" ));
+          exit;
+        }
         echo json_encode(array('status' => "OK" ));
 
       } catch (mysqli_sql_exception $exception) {
@@ -452,7 +461,10 @@ $endpoints["rollback_reserve"] = function(array $requestData, $conn): void{
           }
         }
 
-        mysqli_commit($conn);
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"608" ));
+          exit;
+        }
         echo json_encode(array('status' => "OK" ));
 
       } catch (mysqli_sql_exception $exception) {
@@ -535,7 +547,10 @@ $endpoints["cleanup_reserve"] = function(array $requestData, $conn): void{
               }
             }
           } 
-        mysqli_commit($conn);
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"708" ));
+          exit;
+        }
         echo json_encode(array('status' => "OK" ));
 
       } catch (mysqli_sql_exception $exception) {
