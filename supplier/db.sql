@@ -9,6 +9,7 @@ CREATE TABLE authorized_tokens (
 );
 
 INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('test token', 1, 'fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
+INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('Admin', 2, 'ga3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
 
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,

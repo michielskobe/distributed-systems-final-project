@@ -21,6 +21,14 @@ echo "Testing show_reserve Route:"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/show_reserve
 
 echo ""
+echo "Testing rollback_reserve Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/rollback_reserve -d '{"rollback_details":[{"reservation_id":"7"}]}'
+
+echo ""
+echo "Testing show_reserve Route:"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/show_reserve
+
+echo ""
 echo "Testing commit Route:"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/commit -d '{"commit_details":[{"reservation_id":"28"}, {"reservation_id":"78"}]}'
 
@@ -35,3 +43,11 @@ curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: appl
 echo ""
 echo "Testing show_commit Route:"
 curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/show_commit
+
+echo ""
+echo "Testing cleanup_reserve Route(Wrong API key):"
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/cleanup_reserve
+
+echo ""
+echo "Testing cleanup_reserve Route:"
+curl -H 'x-api-key: ga3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST http://localhost:8069/seller-api/cleanup_reserve
