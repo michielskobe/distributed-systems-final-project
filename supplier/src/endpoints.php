@@ -121,10 +121,52 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
     }
 };
 
-/**
- * the list_products endpoint returns a json containing information about all products available with the seller
- * * @param array requestData this array must contain a key `commit_details` which has a json containing the commit details
- */
+$endpoints["show_reserve"] = function(array $requestData, $conn): void{
+    // get user id
+    $sql = "SELECT * FROM authorized_tokens WHERE token = '" . $requestData["token"] . "'";
+    $result = mysqli_query($conn, $sql);
+    $user_id = -1;
+
+    if (mysqli_num_rows($result) > 0) {
+      $row = mysqli_fetch_assoc($result);
+      $user_id = $row["id"];
+    } else {
+      echo json_encode("Something went wrong -- CODE: 201");
+      exit;
+    }
+
+
+    $reservations = array();
+    $sql = "SELECT * FROM reservations WHERE token_id = " . $user_id;
+    $result = mysqli_query($conn, $sql);
+
+    if (mysqli_num_rows($result) > 0) {
+      // output data of each row
+      while($row = mysqli_fetch_assoc($result)) {
+        $res_id = $row["id"]; 
+        $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $res_id;
+        $res_detail = array();
+
+        $detail = mysqli_query($conn, $sql);
+        if (mysqli_num_rows($detail) > 0) {
+          while($detail_row = mysqli_fetch_assoc($detail)) {
+            $ugh = array(
+              "id" => $detail_row["product_id"],
+              "amount" => $detail_row["amount"]
+            ); 
+            array_push($res_detail, $ugh);
+          }
+          $temp = array($res_id => $res_detail);
+          array_push($reservations, $temp);
+        } 
+      }
+    } else {
+      echo json_encode("Something went wrong -- CODE: 204");
+      exit;
+    }
+    echo json_encode($reservations);
+};
+
 $endpoints["commit"] = function(array $requestData, $conn): void{
     if (isset($requestData["json"]["commit_details"])) {
       $details = $requestData["json"]["commit_details"];
@@ -222,6 +264,53 @@ $endpoints["commit"] = function(array $requestData, $conn): void{
       echo json_encode("Invalid commit details");
     }
 };
+
+$endpoints["show_commit"] = function(array $requestData, $conn): void{
+    // get user id
+    $sql = "SELECT * FROM authorized_tokens WHERE token = '" . $requestData["token"] . "'";
+    $result = mysqli_query($conn, $sql);
+    $user_id = -1;
+
+    if (mysqli_num_rows($result) > 0) {
+      $row = mysqli_fetch_assoc($result);
+      $user_id = $row["id"];
+    } else {
+      echo json_encode("Something went wrong -- CODE: 201");
+      exit;
+    }
+
+
+    $reservations = array();
+    $sql = "SELECT * FROM orders WHERE token_id = " . $user_id;
+    $result = mysqli_query($conn, $sql);
+
+    if (mysqli_num_rows($result) > 0) {
+      // output data of each row
+      while($row = mysqli_fetch_assoc($result)) {
+        $res_id = $row["id"]; 
+        $sql = "SELECT * FROM order_tracker WHERE order_id = " . $res_id;
+        $res_detail = array();
+
+        $detail = mysqli_query($conn, $sql);
+        if (mysqli_num_rows($detail) > 0) {
+          while($detail_row = mysqli_fetch_assoc($detail)) {
+            $ugh = array(
+              "id" => $detail_row["product_id"],
+              "amount" => $detail_row["amount"]
+            ); 
+            array_push($res_detail, $ugh);
+          }
+          $temp = array($res_id => $res_detail);
+          array_push($reservations, $temp);
+        } 
+      }
+    } else {
+      echo json_encode("Something went wrong -- CODE: 204");
+      exit;
+    }
+    echo json_encode($reservations);
+};
+
 /**
  * prints a greeting message with the name specified in the $requestData["name"] item.
  * if the variable is empty a default name is used.
