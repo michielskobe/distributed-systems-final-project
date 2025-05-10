@@ -10,6 +10,7 @@ CREATE TABLE authorized_tokens (
 
 INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('test token', 1, 'fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
 INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('Admin', 2, 'ga3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
+INSERT INTO authorized_tokens (associated_entity_name, auth_level, token) VALUES ('Other webshop', 3, 'ha3b2c9c-a96d-48a8-82ad-0cb775dd3e5d');
 
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -25,6 +26,7 @@ INSERT INTO products (name, price, quantity, description) VALUES ('habeja', 420.
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     token_id INT, 
+    global_order_id VARCHAR(100), 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
 );
@@ -32,6 +34,8 @@ CREATE TABLE orders (
 CREATE TABLE reservations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     token_id INT, 
+    global_order_id VARCHAR(100), 
+    status INT, 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
 );

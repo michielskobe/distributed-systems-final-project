@@ -42,9 +42,10 @@ $endpoints["list_products"] = function(array $requestData, $conn): void{
  * * @param array requestData this array must contain a key `reservation_details` which has a json containing the reservation details
  */
 $endpoints["reserve"] = function(array $requestData, $conn): void{
-    if (isset($requestData["json"]["reservation_details"])) {
+    if (isset($requestData["json"]["reservation_details"]) && isset($requestData["json"]["reservation_id"])) {
       $details = $requestData["json"]["reservation_details"];
-      
+      $reservation_global_id = $requestData["json"]["reservation_id"];
+
       // we have a json with reservation details, we need to do the following:
       // Make a reservation
       // try to link items to that reservation 
@@ -69,7 +70,7 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
 
       try {
         // make the reservation
-        $sql = "INSERT INTO reservations (token_id) VALUES (" . $user_id . ")";
+        $sql = "INSERT INTO reservations (token_id, global_order_id, status) VALUES (" . $user_id . ",'" . $reservation_global_id . "',0)";
         $res_id = -1;
 
         if (mysqli_query($conn, $sql)) {
@@ -111,7 +112,7 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
           echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"008" ));
           exit;
         }
-        echo json_encode(array('status' => "OK", 'response' =>array('reservation_id' => $res_id )));
+        echo json_encode(array('status' => "OK", 'response' =>array('reservation_id' => $reservation_global_id )));
 
       } catch (mysqli_sql_exception $exception) {
           mysqli_rollback($conn);
@@ -140,13 +141,14 @@ $endpoints["show_reserve"] = function(array $requestData, $conn): void{
 
 
     $reservations = array();
-    $sql = "SELECT * FROM reservations WHERE token_id = " . $user_id;
+    $sql = "SELECT * FROM reservations WHERE status = 0 AND token_id = " . $user_id;
     $result = mysqli_query($conn, $sql);
 
     if (mysqli_num_rows($result) > 0) {
       // output data of each row
       while($row = mysqli_fetch_assoc($result)) {
         $res_id = $row["id"]; 
+        $glob_res_id = $row["global_order_id"];
         $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $res_id;
         $res_detail = array();
 
@@ -159,7 +161,7 @@ $endpoints["show_reserve"] = function(array $requestData, $conn): void{
             ); 
             array_push($res_detail, $ugh);
           }
-          $temp = array($res_id => $res_detail);
+          $temp = array($glob_res_id => $res_detail);
           array_push($reservations, $temp);
         } 
       }
@@ -200,20 +202,35 @@ $endpoints["commit"] = function(array $requestData, $conn): void{
         $orders = array();
         // transfer reservation into order
         foreach ($details as $entry) {
+          
+          $sql = "SELECT * FROM reservations WHERE status = 0 AND global_order_id = '" . $entry["reservation_id"] . "'";
+          $result = mysqli_query($conn, $sql);
+          $internal_res_id = -1;
+
+          if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $internal_res_id = $row["id"];
+          } else {
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not find a reservation with the given global ID", 'details'=>"107" ));
+            exit;
+          }
+
+
           // create order
-          $sql = "INSERT INTO orders(token_id) VALUES (" . $user_id . ")";
+          $sql = "INSERT INTO orders(token_id, global_order_id) VALUES (" . $user_id . ", '" . $entry["reservation_id"] . "')";
           $ord_id = -1;
 
           if (mysqli_query($conn, $sql)) {
             $ord_id = mysqli_insert_id($conn);
-            array_push($orders, array('order_id' => $ord_id));
+            array_push($orders, array('order_id' => $entry["reservation_id"]));
           } else {
             mysqli_rollback($conn);
             echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not create order", 'details'=>"101" ));
             exit;
           }
 
-          $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $entry["reservation_id"];
+          $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = '" . $internal_res_id. "'";
           $result = mysqli_query($conn, $sql);
 
           if (mysqli_num_rows($result) > 0) {
@@ -239,18 +256,23 @@ $endpoints["commit"] = function(array $requestData, $conn): void{
 
           // remove reservation
           // sql to delete a record
-          $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $entry["reservation_id"];
+          /* $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $internal_res_id; */
+          /**/
+          /* if (!mysqli_query($conn, $sql)) { */
+          /*   mysqli_rollback($conn); */
+          /*   echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not delete reservation ". $entry["reservation_id"] . " before commit", 'details'=>"104" )); */
+          /*   exit; */
+          /* } */
+          $sql = "UPDATE reservations SET status = 1 WHERE id = '" . $internal_res_id . "'";
 
           if (!mysqli_query($conn, $sql)) {
             mysqli_rollback($conn);
-            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not delete reservation ". $entry["reservation_id"] . " before commit", 'details'=>"104" ));
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly commit the order", 'details'=>"10A" ));
             exit;
           }
-          $sql = "DELETE FROM reservations WHERE id=" . $entry["reservation_id"];
-
-          if (!mysqli_query($conn, $sql)) {
+          if(mysqli_affected_rows($conn) == 0 ){
             mysqli_rollback($conn);
-            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not delete reservation ". $entry["reservation_id"] . " before commit", 'details'=>"105" ));
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly commit the order", 'details'=>"10B" ));
             exit;
           }
         }
@@ -270,7 +292,7 @@ $endpoints["commit"] = function(array $requestData, $conn): void{
       }
       
     } else {
-      echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details", 'details'=>"108" ));
+      echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details", 'details'=>"106" ));
     }
 };
 
@@ -297,6 +319,7 @@ $endpoints["show_commit"] = function(array $requestData, $conn): void{
       // output data of each row
       while($row = mysqli_fetch_assoc($result)) {
         $res_id = $row["id"]; 
+        $glob_res_id = $row["global_order_id"];
         $sql = "SELECT * FROM order_tracker WHERE order_id = " . $res_id;
         $res_detail = array();
 
@@ -309,7 +332,7 @@ $endpoints["show_commit"] = function(array $requestData, $conn): void{
             ); 
             array_push($res_detail, $ugh);
           }
-          $temp = array($res_id => $res_detail);
+          $temp = array($glob_res_id => $res_detail);
           array_push($reservations, $temp);
         } 
       }
@@ -344,7 +367,34 @@ $endpoints["rollback_commit"] = function(array $requestData, $conn): void{
       try {
         // add the items back to the stock
         foreach ($details as $entry) {
-          $sql = "SELECT * FROM order_tracker WHERE order_id = " . $entry["order_id"];
+
+          $sql = "SELECT * FROM reservations WHERE status = 1 AND global_order_id = '" . $entry["order_id"] . "'";
+          $result = mysqli_query($conn, $sql);
+          $internal_res_id = -1;
+
+          if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $internal_res_id = $row["id"];
+          } else {
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not find a reservation with the given global ID", 'details'=>"50A" ));
+            exit;
+          }
+
+          $sql = "SELECT * FROM orders WHERE global_order_id = '" . $entry["order_id"] . "'";
+          $result = mysqli_query($conn, $sql);
+          $internal_ord_id = -1;
+
+          if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $internal_ord_id = $row["id"];
+          } else {
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not find a reservation with the given global ID", 'details'=>"50B" ));
+            exit;
+          }
+
+          $sql = "SELECT * FROM order_tracker WHERE id = " . $internal_ord_id;
 
           $detail = mysqli_query($conn, $sql);
           if (mysqli_num_rows($detail) > 0) {
@@ -366,18 +416,32 @@ $endpoints["rollback_commit"] = function(array $requestData, $conn): void{
           } 
 
           // delete everything
-          $sql = "DELETE FROM order_tracker WHERE order_id=" . $entry["order_id"];
+          $sql = "DELETE FROM order_tracker WHERE order_id=" . $internal_ord_id;
 
           if (!mysqli_query($conn, $sql)) {
             mysqli_rollback($conn);
             echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Order could not be deleted", 'details'=>"505" ));
             exit;
           }
-          $sql = "DELETE FROM orders WHERE id=" . $entry["order_id"];
+
+          $sql = "DELETE FROM orders WHERE id=" . $internal_ord_id;
 
           if (!mysqli_query($conn, $sql)) {
             mysqli_rollback($conn);
             echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Order could not be deleted", 'details'=>"506" ));
+            exit;
+          }
+
+          $sql = "UPDATE reservations SET status = 2 WHERE id = " . $internal_res_id;
+
+          if (!mysqli_query($conn, $sql)) {
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"50C" ));
+            exit;
+          }
+          if(mysqli_affected_rows($conn) == 0 ){
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"50D" ));
             exit;
           }
         }
@@ -395,7 +459,7 @@ $endpoints["rollback_commit"] = function(array $requestData, $conn): void{
       }
       
     } else {
-        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details provided", 'details'=>"508" ));
+        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details provided", 'details'=>"507" ));
     }
 };
 
@@ -423,7 +487,20 @@ $endpoints["rollback_reserve"] = function(array $requestData, $conn): void{
       try {
         // add the items back to the stock
         foreach ($details as $entry) {
-          $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $entry["reservation_id"];
+          $sql = "SELECT * FROM reservations WHERE status = 0 AND global_order_id = '" . $entry["reservation_id"] . "'";
+          $result = mysqli_query($conn, $sql);
+          $internal_res_id = -1;
+
+          if (mysqli_num_rows($result) > 0) {
+            $row = mysqli_fetch_assoc($result);
+            $internal_res_id = $row["id"];
+          } else {
+            mysqli_rollback($conn);
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not find a reservation with the given global ID", 'details'=>"50A" ));
+            exit;
+          }
+
+          $sql = "SELECT * FROM reservation_tracker WHERE reservation_id = " . $internal_res_id;
 
           $detail = mysqli_query($conn, $sql);
           if (mysqli_num_rows($detail) > 0) {
@@ -445,18 +522,23 @@ $endpoints["rollback_reserve"] = function(array $requestData, $conn): void{
           } 
 
           // delete everything
-          $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $entry["reservation_id"];
+          /* $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $internal_res_id; */
+          /**/
+          /* if (!mysqli_query($conn, $sql)) { */
+          /*   mysqli_rollback($conn); */
+          /*   echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- reservation could not be deleted", 'details'=>"605" )); */
+          /*   exit; */
+          /* } */
+          $sql = "UPDATE reservations SET status = 2 WHERE id = " . $internal_res_id;
 
           if (!mysqli_query($conn, $sql)) {
             mysqli_rollback($conn);
-            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- reservation could not be deleted", 'details'=>"605" ));
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"60C" ));
             exit;
           }
-          $sql = "DELETE FROM reservations WHERE id=" . $entry["reservation_id"];
-
-          if (!mysqli_query($conn, $sql)) {
+          if(mysqli_affected_rows($conn) == 0 ){
             mysqli_rollback($conn);
-            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Reservation could not be deleted", 'details'=>"606" ));
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"60D" ));
             exit;
           }
         }
@@ -503,7 +585,7 @@ $endpoints["cleanup_reserve"] = function(array $requestData, $conn): void{
       mysqli_begin_transaction($conn);
 
       try {
-          $sql = "SELECT * FROM reservations WHERE created < (NOW() - INTERVAL 15 MINUTE)";
+          $sql = "SELECT * FROM reservations WHERE status = 0 AND created < (NOW() - INTERVAL 15 MINUTE)";
 
           $result = mysqli_query($conn, $sql);
           if (mysqli_num_rows($result) > 0) {
@@ -531,18 +613,23 @@ $endpoints["cleanup_reserve"] = function(array $requestData, $conn): void{
               } 
 
               // delete everything
-              $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $row["id"];
+              /* $sql = "DELETE FROM reservation_tracker WHERE reservation_id=" . $row["id"]; */
+              /**/
+              /* if (!mysqli_query($conn, $sql)) { */
+              /*   mysqli_rollback($conn); */
+              /*   echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- reservation could not be deleted", 'details'=>"705" )); */
+              /*   exit; */
+              /* } */
+              $sql = "UPDATE reservations SET status = 3 WHERE id = " . $row["id"];
 
               if (!mysqli_query($conn, $sql)) {
                 mysqli_rollback($conn);
-                echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- reservation could not be deleted", 'details'=>"705" ));
+                echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"70C" ));
                 exit;
               }
-              $sql = "DELETE FROM reservations WHERE id=" . $row["id"];
-
-              if (!mysqli_query($conn, $sql)) {
+              if(mysqli_affected_rows($conn) == 0 ){
                 mysqli_rollback($conn);
-                echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Reservation could not be deleted", 'details'=>"706" ));
+                echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- could not properly rollback the order", 'details'=>"70D" ));
                 exit;
               }
             }
