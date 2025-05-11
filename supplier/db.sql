@@ -26,7 +26,7 @@ INSERT INTO products (name, price, quantity, description) VALUES ('habeja', 420.
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     token_id INT, 
-    global_order_id VARCHAR(100), 
+    global_order_id VARCHAR(100) UNIQUE, 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
 );
@@ -34,7 +34,7 @@ CREATE TABLE orders (
 CREATE TABLE reservations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     token_id INT, 
-    global_order_id VARCHAR(100), 
+    global_order_id VARCHAR(100) UNIQUE, 
     status INT, 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)

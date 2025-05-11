@@ -647,6 +647,141 @@ $endpoints["cleanup_reserve"] = function(array $requestData, $conn): void{
       }
 };
 
+$endpoints["transaction_check"] = function(array $requestData, $conn): void{
+    if (isset($requestData["json"]["transaction_id"])) {
+      $details = $requestData["json"]["transaction_id"];
+      // get user id
+      $sql = "SELECT * FROM authorized_tokens WHERE token = '" . $requestData["token"] . "'";
+      $result = mysqli_query($conn, $sql);
+      $user_id = -1;
+
+      if (mysqli_num_rows($result) > 0) {
+        $row = mysqli_fetch_assoc($result);
+        $user_id = $row["id"];
+        if ($row["auth_level"] != 3) {
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- User not allowed to use this endpoint", 'details'=>"A01" ));
+          exit;
+        }
+      } else {
+        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- User not associated with orders", 'details'=>"A00" ));
+        exit;
+      }
+      
+      // start a transaction for stuff
+      // If there is any kind of failure during the process, everything will be reverted 
+      mysqli_begin_transaction($conn);
+
+      try {
+        $status = array();
+        foreach ($details as $entry) {
+          $sql = "SELECT * FROM reservations WHERE global_order_id = '" . $entry . "'";
+
+          $detail = mysqli_query($conn, $sql);
+          if (mysqli_num_rows($detail) > 0) {
+            $detail_row = mysqli_fetch_assoc($detail);
+            array_push($status, array($entry => $detail_row["status"]));
+          } else {
+            echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Unknown global ID", 'details'=>"A02" ));
+            exit;
+          }
+        }
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"A08" ));
+          exit;
+        }
+        echo json_encode(array('status' => "OK", "response" => $status));
+
+      } catch (mysqli_sql_exception $exception) {
+          mysqli_rollback($conn);
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"A09" ));
+          exit;
+      }
+    } else {
+        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details provided", 'details'=>"A08" ));
+    }
+};
+
+$endpoints["check_other_supp"] = function(array $requestData, $conn): void{
+      // get user id
+      $sql = "SELECT * FROM authorized_tokens WHERE token = '" . $requestData["token"] . "'";
+      $result = mysqli_query($conn, $sql);
+      $user_id = -1;
+
+      if (mysqli_num_rows($result) > 0) {
+        $row = mysqli_fetch_assoc($result);
+        $user_id = $row["id"];
+        if ($row["auth_level"] != 2) {
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- User not allowed to use this endpoint", 'details'=>"801" ));
+          exit;
+        }
+      } else {
+        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- User not associated with orders", 'details'=>"800" ));
+        exit;
+      }
+
+      $data = array();
+
+      # SELECT all the transactions which are waiting
+      $sql = "SELECT * FROM reservations WHERE status = 0";
+
+      $result = mysqli_query($conn, $sql);
+      if (mysqli_num_rows($result) > 0) {
+        while($row = mysqli_fetch_assoc($result)) {
+          array_push($data, $row["global_order_id"]);
+        }
+      } else {
+        #Everything is OK if there are no orders waiting
+        echo json_encode(array('status' => "OK" ));
+        exit;
+      } 
+
+      $url = getenv('SUP_OTHER_URL');
+      if (!$url) {
+        $url = "http://localhost:8070/seller-api/transaction_check";
+      }
+
+      $auth_token = getenv('SUP_CHECK_AUTH_TOKEN');
+      if (!$auth_token) {
+        $auth_token = "ha3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
+      }
+
+      $send_data = array("transaction_id" => $data);
+      // use key 'http' even if you send the request to https://...
+      $options = [
+          'http' => [
+              'header' => array("x-api-key: ". $auth_token , 'Content-type: application/json'),
+              'method' => 'POST',
+              'content' => json_encode($send_data)
+          ],
+      ];
+
+      $context = stream_context_create($options);
+      $result = file_get_contents($url, false, $context);
+      if ($result === false) {
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during contact with other supplier", 'details'=>"807" ));
+          exit;
+      }
+
+      // start a transaction for stuff
+      // If there is any kind of failure during the process, everything will be reverted 
+      mysqli_begin_transaction($conn);
+
+      try {
+        // TODO: IMPLEMENT THIS
+
+        if(!mysqli_commit($conn)){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"808" ));
+          exit;
+        }
+        echo json_encode(array('status' => "OK", "result" => json_decode($result)));
+
+      } catch (mysqli_sql_exception $exception) {
+          mysqli_rollback($conn);
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"809" ));
+          exit;
+      }
+};
+
 /**
  * prints a default message if the endpoint path does not exist.
  * @param array $requestData contains the parameters sent in the request, 
