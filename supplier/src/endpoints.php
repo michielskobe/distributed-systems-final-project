@@ -529,7 +529,7 @@ $endpoints["rollback_reserve"] = function(array $requestData, $conn): void{
           /*   echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- reservation could not be deleted", 'details'=>"605" )); */
           /*   exit; */
           /* } */
-          $sql = "UPDATE reservations SET status = 2 WHERE id = " . $internal_res_id;
+          $sql = "UPDATE reservations SET status = 4 WHERE id = " . $internal_res_id;
 
           if (!mysqli_query($conn, $sql)) {
             mysqli_rollback($conn);
@@ -762,12 +762,32 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
           exit;
       }
 
+      $res_arr = json_decode($result,true);
+      if ($res_arr['status'] == "NOK"){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"806" ));
+          exit;
+      }
+
+      // if there is no response key
+      if (!$res_arr['response']){
+          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"805" ));
+          exit;
+      }
       // start a transaction for stuff
       // If there is any kind of failure during the process, everything will be reverted 
       mysqli_begin_transaction($conn);
 
       try {
-        // TODO: IMPLEMENT THIS
+        foreach ($res_arr['response'] as $entry){
+          foreach ($entry as $entry_id => $entry_status) {
+            // We need to perform certain actions based upon the return status
+            // 0: Do nothing
+            // 1: Call the commit route for this entry_id
+            // 2: Call the revert commit route for this entry_id
+            // 3: Call the revert reservation route for this entry_id
+            // 4: Call the revert reservation route for this entry_id
+          }
+        }
 
         if(!mysqli_commit($conn)){
           echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"808" ));
