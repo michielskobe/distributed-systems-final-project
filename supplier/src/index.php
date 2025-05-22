@@ -6,7 +6,10 @@ include '../logging.php';
 
 write_log("User request from IP: ".$_SERVER['REMOTE_ADDR']);
 
-$BASE_URI = "/seller-api/";
+$BASE_URI = getenv('SUP_BASEURI');
+if (!$BASE_URI) {
+  $BASE_URI = "/seller-api/";
+}
 
 $endpoints = array();
 $requestData = array();
