@@ -4,15 +4,10 @@ import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.queue.*;
 import com.azure.storage.queue.models.*;
 import java.util.List;
-
-// Allow HTTP requests to supplier
+import java.util.concurrent.*;
 import java.net.http.*;
 import java.net.URI;
-
-// JDBC imports for SQL communication
 import java.sql.*;
-
-// Jackson for JSON parsing
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,9 +20,19 @@ public class BackgroundWorker {
     // Azure SQL DB configuration
     private static final String SQL_URL = "jdbc:sqlserver://dapp-db.database.windows.net:1433;database=dapp-final-db;user=database@dapp-db;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";
 
+    // Supplier config
+    private static final String SUPPLIER_API_KEY = "fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
+
+    // Threading config
+    private static final int THREAD_POOL_SIZE = 8;
+    private static final int POLLING_INTERVAL_MS = 1000;
+
     private final QueueClient queueClient;
     private final HttpClient httpClient;
-    private final ObjectMapper objectMapper; // Jackson instance
+    private final ObjectMapper objectMapper;
+
+    private final ScheduledExecutorService poller;
+    private final ExecutorService workers;
 
     public BackgroundWorker() {
         this.queueClient = new QueueClientBuilder()
@@ -40,27 +45,39 @@ public class BackgroundWorker {
         this.objectMapper = new ObjectMapper();
 
         this.queueClient.createIfNotExists();
+
+        // Create threadpool
+        this.workers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
+        // Poller which periodically checks for messages
+        this.poller = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void start() {
         System.out.println("Starting background worker for queue: " + QUEUE_NAME);
 
-        // TODO: change polling loop to scheduled executor
-        while (true) {
-            queueClient.receiveMessages(10).forEach(
-                    receivedMessage -> {
-                        System.out.println("Received message: " + receivedMessage.getBody().toString());
+        poller.scheduleAtFixedRate(() -> {
+            try {
+                Iterable<QueueMessageItem> messages = queueClient.receiveMessages(10);
+                for (QueueMessageItem receivedMessage : messages) {
+                    workers.submit(() -> processAndDelete(receivedMessage));
+                }
+            } catch (Exception ex) {
+                System.err.println("Error polling queue: " + ex.getMessage());
+            }
+        }, 0, POLLING_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
-                        boolean success = processOrder(receivedMessage.getBody().toString());
-                        if (success) {
-                            queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
-                        } else {
-                            System.err.println("Order processing failed, message left in queue for retry.");
-                        }
-                    }
-            );
+    }
 
-            sleep(5000);
+    private void processAndDelete(QueueMessageItem receivedMessage) {
+        String messageBody = receivedMessage.getBody().toString();
+        System.out.println("Processing message: " + messageBody);
+
+        boolean success = processOrder(messageBody);
+        if (success) {
+            queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
+        } else {
+            System.err.println("Order processing failed, message left in queue for retry.");
         }
     }
 
@@ -71,7 +88,6 @@ public class BackgroundWorker {
      */
     private boolean processOrder(String message) {
         try {
-            // 1. Parse JSON to extract orderId, etc.
             JsonNode jsonNode = objectMapper.readTree(message);
             String orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
             if (orderId == null) {
@@ -79,9 +95,6 @@ public class BackgroundWorker {
                 return false;
             }
 
-            // (Optional) Extract more info from the JSON if needed
-
-            // 2. Reserve with all suppliers
             boolean allReserved = true;
             for (String supplierUrl : getSupplierEndpoints()) {
                 if (!reserveWithSupplier(supplierUrl, message)) {
@@ -97,7 +110,6 @@ public class BackgroundWorker {
                 return false;
             }
 
-            // 3. Commit with all suppliers
             boolean allCommitted = true;
             for (String supplierUrl : getSupplierEndpoints()) {
                 if (!commitSupplier(supplierUrl, message)) {
@@ -113,7 +125,6 @@ public class BackgroundWorker {
                 return false;
             }
 
-            // 4. Update order status in database
             updateOrderStatus(orderId, "COMPLETED");
             return true;
 
@@ -131,12 +142,13 @@ public class BackgroundWorker {
         return postToSupplier(supplierUrl + "/commit", order);
     }
     private boolean rollbackSupplier(String supplierUrl, String order) {
-        return postToSupplier(supplierUrl + "/rollback", order);
+        return postToSupplier(supplierUrl + "/rollback_reserve", order);
     }
     private boolean postToSupplier(String url, String order) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .header("x-api-key", SUPPLIER_API_KEY)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(order))
                     .build();
@@ -149,16 +161,12 @@ public class BackgroundWorker {
     }
 
     private List<String> getSupplierEndpoints() {
-        // TODO: add and change supplier URLs
         return List.of(
-                "https://rgbeast.francecentral.cloudapp.azure.com/RGBeast"
+                "https://rgbeast.francecentral.cloudapp.azure.com/RGBeast",
+                "https://crank-wankers.francecentral.cloudapp.azure.com/Crank-Wankers"
         );
     }
 
-    /**
-     * Update the order status in Azure SQL database.
-     * Expects a valid orderId.
-     */
     private void updateOrderStatus(String orderId, String status) {
         String sql = "UPDATE orders SET status = ? WHERE order_id = ?";
         try (Connection conn = DriverManager.getConnection(SQL_URL);
@@ -176,11 +184,6 @@ public class BackgroundWorker {
         }
     }
 
-    private void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
-    }
-
-    // Entry point
     public static void main(String[] args) {
         new BackgroundWorker().start();
     }
