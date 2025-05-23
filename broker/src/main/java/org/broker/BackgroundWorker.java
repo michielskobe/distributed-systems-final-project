@@ -151,8 +151,7 @@ public class BackgroundWorker {
     private List<String> getSupplierEndpoints() {
         // TODO: add and change supplier URLs
         return List.of(
-                "https://supplier1.azurewebsites.net/api",
-                "https://supplier2.azurewebsites.net/api"
+                "https://rgbeast.francecentral.cloudapp.azure.com/RGBeast"
         );
     }
 
