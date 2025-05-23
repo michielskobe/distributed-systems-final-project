@@ -25,6 +25,11 @@ Nginx web server
 # Crank Wankers
 
 bike store db: dapp_crank_wankers
-host: 
+host: crank-wankers.francecentral.cloudapp.azure.com
 user: dapp
 pw: Niet dom doen, je weet goed genoeg welk wachtwoord we hier pakke
+
+test command: 
+```
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -X POST https://crank-wankers.francecentral.cloudapp.azure.com/Crank-Wankers/list_products | jq
+```
