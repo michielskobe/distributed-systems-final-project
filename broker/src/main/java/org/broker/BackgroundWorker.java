@@ -126,7 +126,9 @@ public class BackgroundWorker {
 
                 String payloadStr = objectMapper.writeValueAsString(payload);
 
-                if (!reserveWithSupplier(supplierUrl, payloadStr)) {
+                SupplierResponse response = reserveWithSupplier(supplierUrl, payloadStr);
+                if (!response.ok) {
+                    System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
                     allReserved = false;
                     break;
                 }
@@ -158,7 +160,9 @@ public class BackgroundWorker {
                 payload.putArray("commit_details").add(commitDetail);
                 String payloadStr = objectMapper.writeValueAsString(payload);
 
-                if (!commitSupplier(supplierUrl, payloadStr)) {
+                SupplierResponse response = commitSupplier(supplierUrl, payloadStr);
+                if (!response.ok) {
+                    System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
                     allCommitted = false;
                     break;
                 }
@@ -195,6 +199,19 @@ public class BackgroundWorker {
         }
     }
 
+    // === Helper-class for supplier response ===
+    private static class SupplierResponse {
+        boolean ok;
+        String body;
+        int statusCode;
+
+        SupplierResponse(boolean ok, String body, int statusCode) {
+            this.ok = ok;
+            this.body = body;
+            this.statusCode = statusCode;
+        }
+    }
+
     private SupplierProductInfo getSupplierProductInfo(String orderId, int supplierNumber) {
         String idCol = "supplier_" + supplierNumber + "_id";
         String amountCol = "supplier_" + supplierNumber + "_amount";
@@ -224,7 +241,11 @@ public class BackgroundWorker {
             rollbackDetail.put("reservation_id", reservationId);
             payload.putArray("rollback_details").add(rollbackDetail);
             String payloadStr = objectMapper.writeValueAsString(payload);
-            return rollbackSupplier(supplierUrl, payloadStr);
+            SupplierResponse response = rollbackSupplier(supplierUrl, payloadStr);
+            if (!response.ok) {
+                System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+            }
+            return response.ok;
         } catch (Exception e) {
             System.err.println("Error building rollback payload: " + e.getMessage());
             return false;
@@ -232,16 +253,22 @@ public class BackgroundWorker {
     }
 
     // === Helper-methods for HTTP-requests ===
-    private boolean reserveWithSupplier(String supplierUrl, String orderPayload) {
+    private SupplierResponse reserveWithSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/reserve", orderPayload);
     }
-    private boolean commitSupplier(String supplierUrl, String orderPayload) {
+    private SupplierResponse commitSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/commit", orderPayload);
     }
-    private boolean rollbackSupplier(String supplierUrl, String orderPayload) {
+    private SupplierResponse rollbackSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/rollback_reserve", orderPayload);
     }
-    private boolean postToSupplier(String url, String payload) {
+
+    /**
+     * Returns SupplierResponse.ok = true only if:
+     * - HTTP response is 200
+     * - The JSON body contains {"status": "OK"}
+     */
+    private SupplierResponse postToSupplier(String url, String payload) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -250,10 +277,30 @@ public class BackgroundWorker {
                     .POST(HttpRequest.BodyPublishers.ofString(payload))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() == 200;
+
+            boolean isOk = false;
+            String body = response.body();
+            int code = response.statusCode();
+
+            if (code == 200) {
+                try {
+                    JsonNode respJson = objectMapper.readTree(body);
+                    String status = respJson.has("status") ? respJson.get("status").asText() : "";
+                    if ("OK".equalsIgnoreCase(status)) {
+                        isOk = true;
+                    } else {
+                        System.err.printf("Supplier at %s responded with status: %s, body: %s\n", url, status, body);
+                    }
+                } catch (Exception ex) {
+                    System.err.printf("Invalid JSON response from supplier at %s: %s\n", url, body);
+                }
+            } else {
+                System.err.printf("HTTP error from supplier at %s: %d, body: %s\n", url, code, body);
+            }
+            return new SupplierResponse(isOk, body, code);
         } catch (Exception ex) {
             System.err.println("Error contacting supplier: " + url + " - " + ex.getMessage());
-            return false;
+            return new SupplierResponse(false, ex.getMessage(), -1);
         }
     }
 
