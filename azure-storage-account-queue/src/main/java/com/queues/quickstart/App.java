@@ -15,7 +15,7 @@ public class App {
         System.out.println("Azure Queue Storage client library - Java quickstart sample\n");
 
         // Create a unique name for the queue
-        String queueName = "dappqueue-" + java.util.UUID.randomUUID();
+        String queueName = "dappqueue";
 
         // Instantiate a QueueClient
         // We'll use this client object to create and interact with the queue
@@ -28,12 +28,38 @@ public class App {
         System.out.println("Creating queue: " + queueName);
 
         // Create the queue
-        queueClient.create();
+        queueClient.createIfNotExists();
 
         System.out.println("\nAdding messages to the queue...");
 
         // Send several messages to the queue
-        queueClient.sendMessage("First message");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"1\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"2\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"3\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"5\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"4\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"6\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"8\"\n" +
+                "}\n");
+        queueClient.sendMessage("{\n" +
+                "  \"orderId\": \"7\"\n" +
+                "}\n");
+
+
+        /*
         queueClient.sendMessage("Second message");
 
         // Save the result so we can update this message later
@@ -80,7 +106,7 @@ public class App {
         // Clean up
         System.out.println("Deleting queue: " + queueClient.getQueueName());
         queueClient.delete();
-
+        */
         System.out.println("Done");
     }
 }
