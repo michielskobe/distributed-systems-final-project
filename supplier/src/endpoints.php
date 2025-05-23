@@ -27,7 +27,8 @@ $endpoints["list_products"] = function(array $requestData, $conn): void{
           "id" => $row["id"],
           "name" => $row["name"],
           "quantity" => $row["quantity"],
-          "description" => $row["description"]
+          "description" => $row["description"],
+          "image_url" => $row["image_url"]
         );
         array_push($products, $product);
       }

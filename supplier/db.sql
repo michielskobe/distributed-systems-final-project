@@ -18,10 +18,11 @@ CREATE TABLE products (
     price DECIMAL(9,2),
     quantity INT,
     description TEXT,
+    image_url VARCHAR(200),
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO products (name, price, quantity, description) VALUES ('habeja', 420.69, 9, 'Mo how zeh!');
+INSERT INTO products (name, price, quantity, description, image_url) VALUES ('habeja', 420.69, 9, 'Mo how zeh!', 'https://rgbeast.francecentral.cloudapp.azure.com/assets/test.jpg');
 
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
