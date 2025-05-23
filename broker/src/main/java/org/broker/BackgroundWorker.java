@@ -38,6 +38,8 @@ public class BackgroundWorker {
 
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
+
+        this.queueClient.createIfNotExists();
     }
 
     public void start() {
