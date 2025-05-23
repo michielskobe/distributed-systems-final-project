@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class BackgroundWorker {
 
     // Storage Queue configuration
+    // IMPORTANT: storage queue needs set up with 'az login' in terminal
     private static final String QUEUE_NAME = "dappqueue";
     private static final String QUEUE_ENDPOINT = "https://storageaccountdapp.queue.core.windows.net/";
 
@@ -99,10 +100,10 @@ public class BackgroundWorker {
             }
 
             updateOrderStatus(orderId, "PENDING");
+            String reservationId = UUID.randomUUID().toString();
 
             List<String> supplierEndpoints = getSupplierEndpoints();
 
-            Map<String, String> reservationIds = new HashMap<>();
             boolean allReserved = true;
             int supplierNumber = 1;
 
@@ -113,9 +114,6 @@ public class BackgroundWorker {
                     allReserved = false;
                     break;
                 }
-
-                String reservationId = UUID.randomUUID().toString();
-                reservationIds.put(supplierUrl, reservationId);
 
                 ObjectNode payload = objectMapper.createObjectNode();
                 ObjectNode detail = objectMapper.createObjectNode();
@@ -138,7 +136,6 @@ public class BackgroundWorker {
             if (!allReserved) {
                 supplierNumber = 1;
                 for (String supplierUrl : supplierEndpoints) {
-                    String reservationId = reservationIds.get(supplierUrl);
                     if (reservationId != null) {
                         rollbackSupplierWithReservationId(supplierUrl, reservationId);
                     }
@@ -151,7 +148,6 @@ public class BackgroundWorker {
             boolean allCommitted = true;
             supplierNumber = 1;
             for (String supplierUrl : supplierEndpoints) {
-                String reservationId = reservationIds.get(supplierUrl);
                 if (reservationId == null) continue;
 
                 ObjectNode payload = objectMapper.createObjectNode();
@@ -171,10 +167,7 @@ public class BackgroundWorker {
             if (!allCommitted) {
                 supplierNumber = 1;
                 for (String supplierUrl : supplierEndpoints) {
-                    String reservationId = reservationIds.get(supplierUrl);
-                    if (reservationId != null) {
-                        rollbackSupplierWithReservationId(supplierUrl, reservationId);
-                    }
+                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
                     supplierNumber++;
                 }
                 updateOrderStatus(orderId, "FAILED");
