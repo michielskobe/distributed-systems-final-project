@@ -76,11 +76,8 @@ public class BackgroundWorker {
         System.out.println("Processing message: " + messageBody);
 
         boolean success = processOrder(messageBody);
-        if (success) {
-            queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
-        } else {
-            System.err.println("Order processing failed, message left in queue for retry.");
-        }
+        // TODO: leave message in queue and retry if fault is recoverable
+        queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
     }
 
     /**
@@ -94,13 +91,20 @@ public class BackgroundWorker {
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
             String orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
+
             if (orderId == null) {
                 System.err.println("Error: No orderId found in message: " + message);
                 return false;
             }
 
+            if (!orderIdExistsInDatabase(orderId)) {
+                System.err.println("Error: OrderId does not exist in database: " + orderId);
+                return false;
+            }
+
             updateOrderStatus(orderId, "PENDING");
             String reservationId = UUID.randomUUID().toString();
+            if (reservationId == null) return false;
 
             List<String> supplierEndpoints = getSupplierEndpoints();
 
@@ -110,9 +114,9 @@ public class BackgroundWorker {
             for (String supplierUrl : supplierEndpoints) {
                 SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
                 if (info == null) {
+                    System.err.printf("Aborting transaction %s", reservationId);
                     System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
-                    allReserved = false;
-                    break;
+                    return false;
                 }
 
                 ObjectNode payload = objectMapper.createObjectNode();
@@ -126,6 +130,7 @@ public class BackgroundWorker {
 
                 SupplierResponse response = reserveWithSupplier(supplierUrl, payloadStr);
                 if (!response.ok) {
+                    System.err.printf("Aborting transaction %s", reservationId);
                     System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
                     allReserved = false;
                     break;
@@ -136,9 +141,7 @@ public class BackgroundWorker {
             if (!allReserved) {
                 supplierNumber = 1;
                 for (String supplierUrl : supplierEndpoints) {
-                    if (reservationId != null) {
-                        rollbackSupplierWithReservationId(supplierUrl, reservationId);
-                    }
+                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
                     supplierNumber++;
                 }
                 updateOrderStatus(orderId, "FAILED");
@@ -148,8 +151,6 @@ public class BackgroundWorker {
             boolean allCommitted = true;
             supplierNumber = 1;
             for (String supplierUrl : supplierEndpoints) {
-                if (reservationId == null) continue;
-
                 ObjectNode payload = objectMapper.createObjectNode();
                 ObjectNode commitDetail = objectMapper.createObjectNode();
                 commitDetail.put("reservation_id", reservationId);
@@ -158,6 +159,7 @@ public class BackgroundWorker {
 
                 SupplierResponse response = commitSupplier(supplierUrl, payloadStr);
                 if (!response.ok) {
+                    System.err.printf("Aborting transaction %s", reservationId);
                     System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
                     allCommitted = false;
                     break;
@@ -227,7 +229,7 @@ public class BackgroundWorker {
         return null;
     }
 
-    private boolean rollbackSupplierWithReservationId(String supplierUrl, String reservationId) {
+    private void rollbackSupplierWithReservationId(String supplierUrl, String reservationId) {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             ObjectNode rollbackDetail = objectMapper.createObjectNode();
@@ -238,10 +240,8 @@ public class BackgroundWorker {
             if (!response.ok) {
                 System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
             }
-            return response.ok;
         } catch (Exception e) {
             System.err.println("Error building rollback payload: " + e.getMessage());
-            return false;
         }
     }
 
@@ -320,6 +320,23 @@ public class BackgroundWorker {
         } catch (SQLException e) {
             System.err.println("Error updating order status in SQL DB: " + e.getMessage());
         }
+    }
+
+    private boolean orderIdExistsInDatabase(String orderId) {
+        String sql = "SELECT COUNT(*) FROM orders WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(SQL_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, orderId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    int count = rs.getInt(1);
+                    return count > 0;
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error checking orderId in database: " + e.getMessage());
+        }
+        return false;
     }
 
     public static void main(String[] args) {
