@@ -36,29 +36,6 @@ public class App {
         queueClient.sendMessage("{\n" +
                 "  \"orderId\": \"1\"\n" +
                 "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"2\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"3\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"5\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"4\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"6\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"8\"\n" +
-                "}\n");
-        queueClient.sendMessage("{\n" +
-                "  \"orderId\": \"7\"\n" +
-                "}\n");
-
-
         /*
         queueClient.sendMessage("Second message");
 
