@@ -37,16 +37,16 @@ public class BackgroundWorker {
     private final ExecutorService workers;
 
     public BackgroundWorker() {
+        // Instantiate the Azure Storage Queue
         this.queueClient = new QueueClientBuilder()
                 .endpoint(QUEUE_ENDPOINT)
                 .queueName(QUEUE_NAME)
                 .credential(new DefaultAzureCredentialBuilder().build())
                 .buildClient();
+        this.queueClient.createIfNotExists();
 
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
-
-        this.queueClient.createIfNotExists();
 
         // Create threadpool
         this.workers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
@@ -141,7 +141,7 @@ public class BackgroundWorker {
             if (!allReserved) {
                 supplierNumber = 1;
                 for (String supplierUrl : supplierEndpoints) {
-                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
+                    rollbackSupplierReserveWithReservationId(supplierUrl, reservationId);
                     supplierNumber++;
                 }
                 updateOrderStatus(orderId, "FAILED");
@@ -169,7 +169,7 @@ public class BackgroundWorker {
             if (!allCommitted) {
                 supplierNumber = 1;
                 for (String supplierUrl : supplierEndpoints) {
-                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
+                    rollbackSupplierCommitWithReservationId(supplierUrl, reservationId);
                     supplierNumber++;
                 }
                 updateOrderStatus(orderId, "FAILED");
@@ -229,14 +229,30 @@ public class BackgroundWorker {
         return null;
     }
 
-    private void rollbackSupplierWithReservationId(String supplierUrl, String reservationId) {
+    private void rollbackSupplierReserveWithReservationId(String supplierUrl, String reservationId) {
         try {
             ObjectNode payload = objectMapper.createObjectNode();
             ObjectNode rollbackDetail = objectMapper.createObjectNode();
             rollbackDetail.put("reservation_id", reservationId);
             payload.putArray("rollback_details").add(rollbackDetail);
             String payloadStr = objectMapper.writeValueAsString(payload);
-            SupplierResponse response = rollbackSupplier(supplierUrl, payloadStr);
+            SupplierResponse response = rollbackReserveWithSupplier(supplierUrl, payloadStr);
+            if (!response.ok) {
+                System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+            }
+        } catch (Exception e) {
+            System.err.println("Error building rollback payload: " + e.getMessage());
+        }
+    }
+
+    private void rollbackSupplierCommitWithReservationId(String supplierUrl, String reservationId) {
+        try {
+            ObjectNode payload = objectMapper.createObjectNode();
+            ObjectNode rollbackDetail = objectMapper.createObjectNode();
+            rollbackDetail.put("order_id", reservationId);
+            payload.putArray("rollback_details").add(rollbackDetail);
+            String payloadStr = objectMapper.writeValueAsString(payload);
+            SupplierResponse response = rollbackCommitSupplier(supplierUrl, payloadStr);
             if (!response.ok) {
                 System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
             }
@@ -252,8 +268,12 @@ public class BackgroundWorker {
     private SupplierResponse commitSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/commit", orderPayload);
     }
-    private SupplierResponse rollbackSupplier(String supplierUrl, String orderPayload) {
+    private SupplierResponse rollbackReserveWithSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/rollback_reserve", orderPayload);
+    }
+
+    private SupplierResponse rollbackCommitSupplier(String supplierUrl, String orderPayload) {
+        return postToSupplier(supplierUrl + "/rollback_commit", orderPayload);
     }
 
     /**
