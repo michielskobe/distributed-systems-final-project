@@ -135,27 +135,32 @@ public class BackgroundWorker {
     }
 
     // === Helper-methods for distributed commit ===
-    private boolean reserveFromAllSuppliers(String orderId, String reservationId, List<String> supplierEndpoints) throws JsonProcessingException {
-        int supplierNumber = 1;
-        for (String supplierUrl : supplierEndpoints) {
-            SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
-            if (info == null) {
-                System.err.printf("Aborting transaction %s", reservationId);
-                System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
-                return false;
-            }
+    private boolean reserveFromAllSuppliers(String orderId, String reservationId, List<String> supplierEndpoints) {
+        try {
+            int supplierNumber = 1;
+            for (String supplierUrl : supplierEndpoints) {
+                SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
+                if (info == null) {
+                    System.err.printf("Aborting transaction %s", reservationId);
+                    System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
+                    return false;
+                }
 
-            String payload = createReservationPayload(info, reservationId);
-            SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
+                String payload = createReservationPayload(info, reservationId);
+                SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
 
-            if (!response.ok) {
-                System.err.printf("Aborting transaction %s", reservationId);
-                System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
-                return false;
+                if (!response.ok) {
+                    System.err.printf("Aborting transaction %s", reservationId);
+                    System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+                    return false;
+                }
+                supplierNumber++;
             }
-            supplierNumber++;
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
         }
-        return true;
     }
 
     private String createReservationPayload(SupplierProductInfo info, String reservationId) throws JsonProcessingException {
@@ -170,20 +175,23 @@ public class BackgroundWorker {
         return objectMapper.writeValueAsString(payload);
     }
 
-    private boolean commitAllSuppliers(List<String> supplierEndpoints, String reservationId) throws Exception {
-        int supplierNumber = 1;
-        for (String supplierUrl : supplierEndpoints) {
-            String payload = createCommitPayload(reservationId);
-            SupplierResponse response = commitSupplier(supplierUrl, payload);
+    private boolean commitAllSuppliers(List<String> supplierEndpoints, String reservationId) {
+        try {
+            for (String supplierUrl : supplierEndpoints) {
+                String payload = createCommitPayload(reservationId);
+                SupplierResponse response = commitSupplier(supplierUrl, payload);
 
-            if (!response.ok) {
-                System.err.printf("Aborting transaction %s", reservationId);
-                System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
-                return false;
+                if (!response.ok) {
+                    System.err.printf("Aborting transaction %s", reservationId);
+                    System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+                    return false;
+                }
             }
-            supplierNumber++;
+            return true;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return false;
         }
-        return true;
     }
 
     private String createCommitPayload(String reservationId) throws JsonProcessingException {
