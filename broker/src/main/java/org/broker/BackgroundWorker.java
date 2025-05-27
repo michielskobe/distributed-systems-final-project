@@ -8,6 +8,8 @@ import java.util.concurrent.*;
 import java.net.http.*;
 import java.net.URI;
 import java.sql.*;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,18 +39,19 @@ public class BackgroundWorker {
     private final ExecutorService workers;
 
     public BackgroundWorker() {
+        // Initialize Azure Storage Queue
         this.queueClient = new QueueClientBuilder()
                 .endpoint(QUEUE_ENDPOINT)
                 .queueName(QUEUE_NAME)
                 .credential(new DefaultAzureCredentialBuilder().build())
                 .buildClient();
+        this.queueClient.createIfNotExists();
 
+        // Initialize broker's HttpClient and ObjectMapper
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
 
-        this.queueClient.createIfNotExists();
-
-        // Create threadpool
+        // Create thread pool
         this.workers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
         // Poller which periodically checks for messages
@@ -108,70 +111,16 @@ public class BackgroundWorker {
 
             List<String> supplierEndpoints = getSupplierEndpoints();
 
-            boolean allReserved = true;
-            int supplierNumber = 1;
-
-            for (String supplierUrl : supplierEndpoints) {
-                SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
-                if (info == null) {
-                    System.err.printf("Aborting transaction %s", reservationId);
-                    System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
-                    return false;
-                }
-
-                ObjectNode payload = objectMapper.createObjectNode();
-                ObjectNode detail = objectMapper.createObjectNode();
-                detail.put("id", info.productId);
-                detail.put("amount", String.valueOf(info.amount));
-                payload.putArray("reservation_details").add(detail);
-                payload.put("reservation_id", reservationId);
-
-                String payloadStr = objectMapper.writeValueAsString(payload);
-
-                SupplierResponse response = reserveWithSupplier(supplierUrl, payloadStr);
-                if (!response.ok) {
-                    System.err.printf("Aborting transaction %s", reservationId);
-                    System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
-                    allReserved = false;
-                    break;
-                }
-                supplierNumber++;
-            }
-
-            if (!allReserved) {
-                supplierNumber = 1;
-                for (String supplierUrl : supplierEndpoints) {
-                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
-                    supplierNumber++;
-                }
+            boolean successfullyReserved = reserveFromAllSuppliers(orderId, reservationId, supplierEndpoints);
+            if (!successfullyReserved) {
+                rollbackAll(supplierEndpoints, reservationId);
                 updateOrderStatus(orderId, "FAILED");
                 return false;
             }
 
-            boolean allCommitted = true;
-            supplierNumber = 1;
-            for (String supplierUrl : supplierEndpoints) {
-                ObjectNode payload = objectMapper.createObjectNode();
-                ObjectNode commitDetail = objectMapper.createObjectNode();
-                commitDetail.put("reservation_id", reservationId);
-                payload.putArray("commit_details").add(commitDetail);
-                String payloadStr = objectMapper.writeValueAsString(payload);
-
-                SupplierResponse response = commitSupplier(supplierUrl, payloadStr);
-                if (!response.ok) {
-                    System.err.printf("Aborting transaction %s", reservationId);
-                    System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
-                    allCommitted = false;
-                    break;
-                }
-                supplierNumber++;
-            }
-            if (!allCommitted) {
-                supplierNumber = 1;
-                for (String supplierUrl : supplierEndpoints) {
-                    rollbackSupplierWithReservationId(supplierUrl, reservationId);
-                    supplierNumber++;
-                }
+            boolean successfullyCommitted = commitAllSuppliers(supplierEndpoints, reservationId);
+            if (!successfullyCommitted) {
+                rollbackAll(supplierEndpoints, reservationId);
                 updateOrderStatus(orderId, "FAILED");
                 return false;
             }
@@ -185,6 +134,75 @@ public class BackgroundWorker {
         }
     }
 
+    // === Helper-methods for distributed commit ===
+    private boolean reserveFromAllSuppliers(String orderId, String reservationId, List<String> supplierEndpoints) throws JsonProcessingException {
+        int supplierNumber = 1;
+        for (String supplierUrl : supplierEndpoints) {
+            SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
+            if (info == null) {
+                System.err.printf("Aborting transaction %s", reservationId);
+                System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
+                return false;
+            }
+
+            String payload = createReservationPayload(info, reservationId);
+            SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
+
+            if (!response.ok) {
+                System.err.printf("Aborting transaction %s", reservationId);
+                System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+                return false;
+            }
+            supplierNumber++;
+        }
+        return true;
+    }
+
+    private String createReservationPayload(SupplierProductInfo info, String reservationId) throws JsonProcessingException {
+        ObjectNode detail = objectMapper.createObjectNode();
+        detail.put("id", info.productId);
+        detail.put("amount", String.valueOf(info.amount));
+
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.putArray("reservation_details").add(detail);
+        payload.put("reservation_id", reservationId);
+
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private boolean commitAllSuppliers(List<String> supplierEndpoints, String reservationId) throws Exception {
+        int supplierNumber = 1;
+        for (String supplierUrl : supplierEndpoints) {
+            String payload = createCommitPayload(reservationId);
+            SupplierResponse response = commitSupplier(supplierUrl, payload);
+
+            if (!response.ok) {
+                System.err.printf("Aborting transaction %s", reservationId);
+                System.err.printf("Commit NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+                return false;
+            }
+            supplierNumber++;
+        }
+        return true;
+    }
+
+    private String createCommitPayload(String reservationId) throws JsonProcessingException {
+        ObjectNode commitDetail = objectMapper.createObjectNode();
+        commitDetail.put("reservation_id", reservationId);
+
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.putArray("commit_details").add(commitDetail);
+
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private void rollbackAll(List<String> supplierEndpoints, String reservationId) {
+        for (String supplierUrl : supplierEndpoints) {
+            rollbackSupplierWithReservationId(supplierUrl, reservationId);
+        }
+    }
+
+    // === Helper-class for product info ===
     private static class SupplierProductInfo {
         String productId;
         int amount;
