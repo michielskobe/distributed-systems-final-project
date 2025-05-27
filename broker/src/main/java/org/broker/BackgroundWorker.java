@@ -79,8 +79,31 @@ public class BackgroundWorker {
         System.out.println("Processing message: " + messageBody);
 
         boolean success = processOrder(messageBody);
-        // TODO: leave message in queue and retry if fault is recoverable
-        queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
+        if (success) {
+            queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
+            System.out.println("Message deleted: " + messageBody);
+        } else {
+            try {
+                JsonNode jsonNode = objectMapper.readTree(messageBody);
+                String orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
+
+                if (orderId != null) {
+                    String status = getOrderStatus(orderId);
+                    if (status.equals("FAILED")) {
+                        // It's terminal, delete message
+                        queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
+                        System.out.printf("Order %s failed. Message deleted from queue.\n", orderId);
+                    } else if (status.equals("PENDING")) {
+                        // Do not delete — allow retry
+                        System.out.printf("Order %s is still pending. Will retry.\n", orderId);
+                    } else {
+                        System.out.printf("Order %s is in unexpected status: %s. Will retry.\n", orderId, status);
+                    }
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
     }
 
     /**
@@ -103,6 +126,11 @@ public class BackgroundWorker {
             if (!orderIdExistsInDatabase(orderId)) {
                 System.err.println("Error: OrderId does not exist in database: " + orderId);
                 return false;
+            }
+
+            if (getOrderStatus(orderId).equals("COMPLETED")) {
+                System.out.println("Order already completed: " + orderId);
+                return true;
             }
 
             updateOrderStatus(orderId, "PENDING");
@@ -331,17 +359,34 @@ public class BackgroundWorker {
         );
     }
 
-    private void updateOrderStatus(String orderId, String status) {
+    private String getOrderStatus(String orderId) {
+        String sql = "SELECT status FROM orders WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(SQL_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, orderId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error reading order status: " + e.getMessage());
+        }
+        return "UNKNOWN";
+    }
+
+    private void updateOrderStatus(String orderId, String newStatus) {
+        String oldStatus = getOrderStatus(orderId);
         String sql = "UPDATE orders SET status = ? WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(SQL_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, status);
+            stmt.setString(1, newStatus);
             stmt.setString(2, orderId);
             int updated = stmt.executeUpdate();
             if (updated > 0) {
-                System.out.printf("Order status updated to %s for order ID: %s\n", status, orderId);
+                System.out.printf("Order status updated from %s to %s for order ID: %s\n", oldStatus, newStatus, orderId);
             } else {
-                System.err.printf("No rows updated for order ID: %s (status: %s)\n", orderId, status);
+                System.err.printf("No rows updated for order ID: %s (status: %s)\n", orderId, newStatus);
             }
         } catch (SQLException e) {
             System.err.println("Error updating order status in SQL DB: " + e.getMessage());
