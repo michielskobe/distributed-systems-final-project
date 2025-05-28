@@ -136,6 +136,7 @@ public class BackgroundWorker {
             updateOrderStatus(orderId, "PENDING");
             String reservationId = UUID.randomUUID().toString();
             if (reservationId == null) return false;
+            updateReservationId(orderId, reservationId);
 
             List<String> supplierEndpoints = getSupplierEndpoints();
 
@@ -199,6 +200,9 @@ public class BackgroundWorker {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.putArray("reservation_details").add(detail);
         payload.put("reservation_id", reservationId);
+        // TODO: Update callbackUrl when broker is deployed
+        String callbackUrl = "http://localhost:8080/reservation_status/" + reservationId;
+        payload.put("callback", callbackUrl);
 
         return objectMapper.writeValueAsString(payload);
     }
@@ -390,6 +394,23 @@ public class BackgroundWorker {
             }
         } catch (SQLException e) {
             System.err.println("Error updating order status in SQL DB: " + e.getMessage());
+        }
+    }
+
+    private void updateReservationId(String orderId, String reservationId) {
+        String sql = "UPDATE orders SET reservation_id = ? WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(SQL_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, reservationId);
+            stmt.setString(2, orderId);
+            int updated = stmt.executeUpdate();
+            if (updated > 0) {
+                System.out.printf("Reservation id updated to %s for order ID: %s\n", reservationId, orderId);
+            } else {
+                System.err.printf("No rows updated for order ID: %s\n", orderId);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error updating reservation id in SQL DB: " + e.getMessage());
         }
     }
 
