@@ -200,7 +200,7 @@ public class BackgroundWorker {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.putArray("reservation_details").add(detail);
         payload.put("reservation_id", reservationId);
-        // TODO: Update callbackUrl when broker is deployed
+        // TODO: Fix callbackUrl
         String callbackUrl = "http://localhost:8080/reservation_status/" + reservationId;
         payload.put("callback", callbackUrl);
 

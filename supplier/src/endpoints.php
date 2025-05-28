@@ -502,6 +502,7 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
       $result = mysqli_query($conn, $sql);
       if (mysqli_num_rows($result) > 0) {
         while($row = mysqli_fetch_assoc($result)) {
+          $operation_made_for_order = false;
           $data = array();
           array_push($data, $row["global_order_id"]);
 
@@ -512,6 +513,12 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
           // basically, do nothing if no callbacks are provided
           if (mysqli_num_rows($result_link) > 0) {
             while($row_link = mysqli_fetch_assoc($result_link)) {
+              // Only contact the minimal amount of callbacks
+              // Once an operation is known, you don't have to ask others
+              if ($operation_made_for_order) {
+                continue;
+              }
+
               $url = $row_link["url"];
 
               $auth_token = getenv('SUP_CHECK_AUTH_TOKEN');
@@ -557,10 +564,34 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
                   foreach ($entry as $entry_id => $entry_status) {
                     // We need to perform certain actions based upon the return status
                     // 0: Do nothing
-                    // 1: Call the commit route for this entry_id
-                    // 2: Call the revert commit route for this entry_id
-                    // 3: Call the revert reservation route for this entry_id
-                    // 4: Call the revert reservation route for this entry_id
+                    // 1: Call the commit route for this entry_id, MARK OPERATION MADE
+                    // 2: Call the revert commit route for this entry_id, MARK OPERATION MADE
+                    // 3: Call the revert reservation route for this entry_id, MARK OPERATION MADE
+                    // 4: Call the revert reservation route for this entry_id, MARK OPERATION MADE
+
+                    switch ($entry_status) {
+                      case 0:
+                        
+                        break;
+                      
+                      case 1:
+                        $operation_made_for_order = true;
+                        $details = array(array('reservation_id' => $row["global_order_id"]));
+                        
+                        commit($row["token_id"], $details, $conn);
+                        break;
+
+                      case 4:
+                        $operation_made_for_order = true;
+                        $details = array(array('reservation_id' => $row["global_order_id"]));
+
+                        revert_reservation($row["token_id"], $details, $conn);
+                        break;
+
+                      default:
+                        # code...
+                        break;
+                    }
                   }
                 }
 
