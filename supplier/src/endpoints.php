@@ -43,9 +43,10 @@ $endpoints["list_products"] = function(array $requestData, $conn): void{
  * * @param array requestData this array must contain a key `reservation_details` which has a json containing the reservation details
  */
 $endpoints["reserve"] = function(array $requestData, $conn): void{
-    if (isset($requestData["json"]["reservation_details"]) && isset($requestData["json"]["reservation_id"])) {
+    if (isset($requestData["json"]["reservation_details"]) && isset($requestData["json"]["reservation_id"]) && isset($requestData["json"]["callback"])) {
       $details = $requestData["json"]["reservation_details"];
       $reservation_global_id = $requestData["json"]["reservation_id"];
+      $callback_links = $requestData["json"]["callback"];
 
       // we have a json with reservation details, we need to do the following:
       // Make a reservation
@@ -64,7 +65,7 @@ $endpoints["reserve"] = function(array $requestData, $conn): void{
         exit;
       }
 
-      reserve($user_id, $reservation_global_id, $details, $conn);
+      reserve($user_id, $reservation_global_id, $details, $callback_links, $conn);
       
     } else {
         echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Invalid details", 'details'=>"006" ));
@@ -494,7 +495,6 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
         exit;
       }
 
-      $data = array();
 
       # SELECT all the transactions which are waiting
       $sql = "SELECT * FROM reservations WHERE status = 0";
@@ -502,7 +502,82 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
       $result = mysqli_query($conn, $sql);
       if (mysqli_num_rows($result) > 0) {
         while($row = mysqli_fetch_assoc($result)) {
+          $data = array();
           array_push($data, $row["global_order_id"]);
+
+          // code here for grabbing all associated urls
+          $sql_link = "SELECT * FROM callback_links WHERE res_id = " . $row["id"]; 
+          $result_link = mysqli_query($conn, $sql_link);
+
+          // basically, do nothing if no callbacks are provided
+          if (mysqli_num_rows($result_link) > 0) {
+            while($row_link = mysqli_fetch_assoc($result_link)) {
+              $url = $row_link["url"];
+
+              $auth_token = getenv('SUP_CHECK_AUTH_TOKEN');
+              if (!$auth_token) {
+                $auth_token = "ha3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
+              }
+
+              $send_data = array("transaction_id" => $data);
+
+              // use key 'http' even if you send the request to https://...
+              $options = [
+                  'http' => [
+                      'header' => array("x-api-key: ". $auth_token , 'Content-type: application/json'),
+                      'method' => 'POST',
+                      'content' => json_encode($send_data)
+                  ],
+              ];
+
+              $context = stream_context_create($options);
+              $result_call = file_get_contents($url, false, $context);
+              if ($result_call === false) {
+                  echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during contact with other supplier", 'details'=>"807", "order_id" => $row["id"], "result" => json_decode($result_call) ));
+                  continue;
+              }
+
+              $res_arr = json_decode($result_call,true);
+              if ($res_arr['status'] == "NOK"){
+                  echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"806", "order_id" => $row["id"], "result" => json_decode($result_call) ));
+                  continue;
+              }
+
+              // if there is no response key
+              if (!$res_arr['response']){
+                  echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"805", "order_id" => $row["id"], "result" => json_decode($result_call) ));
+                  continue;
+              }
+              // start a transaction for stuff
+              // If there is any kind of failure during the process, everything will be reverted 
+              mysqli_begin_transaction($conn);
+
+              try {
+                foreach ($res_arr['response'] as $entry){
+                  foreach ($entry as $entry_id => $entry_status) {
+                    // We need to perform certain actions based upon the return status
+                    // 0: Do nothing
+                    // 1: Call the commit route for this entry_id
+                    // 2: Call the revert commit route for this entry_id
+                    // 3: Call the revert reservation route for this entry_id
+                    // 4: Call the revert reservation route for this entry_id
+                  }
+                }
+
+                if(!mysqli_commit($conn)){
+                  echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"808", "order_id" => $row["id"], "result" => json_decode($result_call) ));
+                  continue;
+                }
+                echo json_encode(array('status' => "OK", "order_id" => $row["id"], "result" => json_decode($result_call)));
+
+              } catch (mysqli_sql_exception $exception) {
+                  mysqli_rollback($conn);
+                  echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"809", "order_id" => $row["id"], "result" => json_decode($result_call) ));
+                  continue;
+              }
+            }  
+          }
+
         }
       } else {
         #Everything is OK if there are no orders waiting
@@ -510,71 +585,6 @@ $endpoints["check_other_supp"] = function(array $requestData, $conn): void{
         exit;
       } 
 
-      $url = getenv('SUP_OTHER_URL');
-      if (!$url) {
-        $url = "http://localhost:8070/seller-api/transaction_check";
-      }
-
-      $auth_token = getenv('SUP_CHECK_AUTH_TOKEN');
-      if (!$auth_token) {
-        $auth_token = "ha3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
-      }
-
-      $send_data = array("transaction_id" => $data);
-      // use key 'http' even if you send the request to https://...
-      $options = [
-          'http' => [
-              'header' => array("x-api-key: ". $auth_token , 'Content-type: application/json'),
-              'method' => 'POST',
-              'content' => json_encode($send_data)
-          ],
-      ];
-
-      $context = stream_context_create($options);
-      $result = file_get_contents($url, false, $context);
-      if ($result === false) {
-          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during contact with other supplier", 'details'=>"807" ));
-          exit;
-      }
-
-      $res_arr = json_decode($result,true);
-      if ($res_arr['status'] == "NOK"){
-          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"806" ));
-          exit;
-      }
-
-      // if there is no response key
-      if (!$res_arr['response']){
-          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure at other supplier", 'details'=>"805" ));
-          exit;
-      }
-      // start a transaction for stuff
-      // If there is any kind of failure during the process, everything will be reverted 
-      mysqli_begin_transaction($conn);
-
-      try {
-        foreach ($res_arr['response'] as $entry){
-          foreach ($entry as $entry_id => $entry_status) {
-            // We need to perform certain actions based upon the return status
-            // 0: Do nothing
-            // 1: Call the commit route for this entry_id
-            // 2: Call the revert commit route for this entry_id
-            // 3: Call the revert reservation route for this entry_id
-            // 4: Call the revert reservation route for this entry_id
-          }
-        }
-
-        if(!mysqli_commit($conn)){
-          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"808" ));
-          exit;
-        }
-        echo json_encode(array('status' => "OK", "result" => json_decode($result)));
-
-      } catch (mysqli_sql_exception $exception) {
-          mysqli_rollback($conn);
-          echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Failure during transaction", 'details'=>"809" ));
-          exit;
-      }
 };
 
 /**

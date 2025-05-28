@@ -1,7 +1,7 @@
 <?php
 
 
-function reserve($user_id, $reservation_global_id, $details, $conn) {
+function reserve($user_id, $reservation_global_id, $details, $callback_links, $conn) {
   // start a transaction for stuff
   // If there is any kind of failure during the process, everything will be reverted 
   mysqli_begin_transaction($conn);
@@ -17,6 +17,17 @@ function reserve($user_id, $reservation_global_id, $details, $conn) {
       mysqli_rollback($conn);
       echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not make reservation", 'details'=>"001" ));
       exit;
+    }
+
+    // add callback links to the db
+    foreach ($callback_links as $link) {
+      $sql_link = "INSERT INTO callback_links (url, res_id) VALUES ('". $link ."', ". $res_id .")";
+
+      if (!mysqli_query($conn, $sql_link)){
+        mysqli_rollback($conn);
+        echo json_encode(array('status' => "NOK", 'message' => "Something went wrong -- Could not add callback links", 'details'=>"005" ));
+        exit;
+      }
     }
 
     foreach ($details as $entry) {

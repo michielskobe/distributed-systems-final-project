@@ -10,15 +10,15 @@ curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dz3e5d' -X POST http://localho
 
 echo ""
 echo "Testing reserve Route:"
-curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"1", "amount":"2"}], "reservation_id":"lol"}'
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"1", "amount":"2"}], "reservation_id":"lol", "callback":["http://localhost:8070/seller-api/transaction_check"]}'
 
 echo ""
 echo "Testing reserve Route:"
-curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"1", "amount":"2"}], "reservation_id":"lol5"}'
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"1", "amount":"2"}], "reservation_id":"lol5", "callback":["http://localhost:8070/seller-api/transaction_check", "http://localhost:8070/seller-api/transaction_check"]}'
 
 echo ""
 echo "Testing reserve Route (Invalid product):"
-curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"111111", "amount":"2"}], "reservation_id":"lol1"}'
+curl -H 'x-api-key: fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d' -H 'Content-Type: application/json' -X POST http://localhost:8069/seller-api/reserve -d '{"reservation_details":[{"id":"111111", "amount":"2"}], "reservation_id":"lol1", "callback":["http://localhost:8070/seller-api/transaction_check"]}'
 
 echo ""
 echo "Testing show_reserve Route:"

@@ -41,6 +41,14 @@ CREATE TABLE reservations (
     FOREIGN KEY(token_id) REFERENCES authorized_tokens(id)
 );
 
+CREATE TABLE callback_links (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  url VARCHAR(300), 
+  res_id INT,
+  created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(res_id) REFERENCES reservations(id)
+);
+
 CREATE TABLE reservation_tracker (
     id INT AUTO_INCREMENT PRIMARY KEY,
     amount INT,
