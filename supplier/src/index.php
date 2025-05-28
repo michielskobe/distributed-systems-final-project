@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 include "../settings.php";
 include '../logging.php';
+include "util.php";
 
 write_log("User request from IP: ".$_SERVER['REMOTE_ADDR']);
 
