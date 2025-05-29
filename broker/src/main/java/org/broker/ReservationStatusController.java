@@ -12,7 +12,8 @@ public class ReservationStatusController {
     @GetMapping("/{reservationId}")
     public StatusResponse getReservationStatus(@PathVariable String reservationId) {
         String status = getOrderStatus(reservationId);
-        return new StatusResponse(status);
+        int code = mapStatusToCode(status);
+        return new StatusResponse(code);
     }
 
     private String getOrderStatus(String reservationId) {
@@ -31,9 +32,23 @@ public class ReservationStatusController {
         return "UNKNOWN";
     }
 
+    private int mapStatusToCode(String status) {
+        switch (status) {
+            case "NEW":
+            case "PENDING":
+                return 0; // No decision yet
+            case "COMPLETED":
+                return 1; // Commited
+            case "FAILED":
+                return 4; // RESERVATION aborted/rolled back
+            default:
+                return 0;
+        }
+    }
+
     public static class StatusResponse {
-        public String status;
-        public StatusResponse(String status) {
+        public int status;
+        public StatusResponse(int status) {
             this.status = status;
         }
     }
