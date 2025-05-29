@@ -177,7 +177,7 @@ public class BackgroundWorker {
                 }
 
                 List<String> callbackUrls = getSupplierCallbackUrls(supplierUrl, supplierEndpoints);
-                callbackUrls.add("http://localhost:8080/transaction_check/" + reservationId);
+                callbackUrls.add("http://dapp-final-broker.uksouth.cloudapp.azure.com/transaction_check/" + reservationId);
 
                 String payload = createReservationPayload(info, reservationId, callbackUrls);
                 SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
