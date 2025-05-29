@@ -33,7 +33,69 @@
 \begin{document}
 	\maketitle  
 	\section*{Introduction}
+		This report presents an overview of a modern web-based retail platform specializing in the sale of bicycles equipped with RGB LED strips, a product that blends functionality, safety, and aesthetic appeal for urban and recreational cyclists. The web-shop is designed to deliver a seamless shopping experience while leveraging a robust, distributed architecture deployed on Microsoft Azure.\\
+		By operating across various administrative and geographic boundaries, the system ensures high availability, scalability, and resilience. The use of Azure’s global infrastructure enables efficient resource allocation, data redundancy, and compliance with regional data protection regulations. This report explores the technical design, deployment strategies, and operational considerations of the platform, with a focus on how distributed cloud services support the business’s scalability and cross-regional presence.
 
+	\section{General Architecture}
+		\begin{figure}[h]
+			\centering
+			\includegraphics[width=1\linewidth]{images/arch}
+			\caption{General overview of the architecture}
+			\label{fig:arch}
+		\end{figure}
+		
+	
+	\section{Front-end Details}
+	
+	\section{Broker Details}
+	
+	\section{Supplier Details}
+		Although the suppliers are an indirect part of the web-store, they do take part in the distributed commit. Because of this, careful thought had to be put in to ensure proper processing of an order. 
+		\subsection{Design}
+			A supplier is essentially a PHP API with a number of endpoints useful for retrieving information about products and orders. As well as making a distributed commit of-course. On a high level, the following endpoints are available:
+			\begin{description}
+				\item[list\_products] provides information such as id, name, description, stock and an image url for all products. 
+				\item[reserve] provides a starting point for the distributed commit. It acts as a \emph{request} operation. It expects information such as a global order id, other partaking parties and of-course product information. 
+				\item[show\_reserve] provides information about reservations currently filed by a user.
+				\item[commit] provides a way to confirm a reservation. It acts as a\emph{commit} operation. It just needs to know which global order id needs to be committed. 
+				\item[show\_commit] provides information about the commits currently filed by a user.
+				\item[rollback\_reservation] provides a way to cancel a reservation. It acts as an \emph{abort} operation. It just needs to know which global order id needs to be reverted. 
+				\item[rollback\_commit] provides a way to cancel a commit. It is not part of the standard two-phase commit but can be used for cancelling confirmed orders. 
+				\item[cleanup\_reserve] provides a way for users with extra privileges to clean-up stale reservations in case they have been abandoned by the broker. 
+				\item[transaction\_check] provides a way for users with extra privileges to request the status of any global order id, it acts as a part of the mechanism to communicate among suppliers in case of a broker failure. 
+				\item[check\_other\_sup] provides a way for users with extra privileges to perform a synchronisation of waiting reservations with their respective peers.  
+			\end{description}
+			
+			In order to secure these endpoints, we protected them with SSL so there would be no unencrypted data on the wire. This was done using free \emph{Let's Encrypt} certificates which renew automatically. Another level of protection is the API-keys which are required to talk to a supplier. These API keys are registered in a  database and are associated with an entity name and privilege level. This way, ordinary brokers can't perform the same tasks as an admin user. This helps to ensure critical actions such as clean-up and synchronisation are only performed by the right entity. Another layer of protection is the Nginx web-server which serves the PHP API to the outside world. It is configured to protect any assets which contain sensitive information, only allowing traffic to the PHP and picture assets. 
+			
+			In order to help avoid inconsistency in the suppliers, a lot of effort was put into making sure a malformed input has no effect on the transactions. This is done by checking the contents of a request to see if it contains the right data for performing the requested operation. Furthermore, if something does manage to slip through the cracks, the PHP works with DB transactions. Essentially, when a critical section of the code is reached, an SQL transaction is started. Following this, all operations are performed on the database and finally they are committed when everything is successful. If something goes wrong in the critical section however, the entire transaction gets rolled back. 
+			
+			In the event of a crashed machine which partakes in the distributed commit, nobody can be exactly sure who received what message (depending on which machine failed). That is why the callback mechanism was introduced in the suppliers. When a reservation gets made, the broker is responsible for adding information about which machines partake in the transaction  (suppliers and broker). Because the broker supplies this info, we have the flexibility to perform a commit which can involve a varying amount of suppliers. Essentially, the customer can choose not to buy a battery kit. This would result in the bike and RGB supplier knowing not to communicate with the battery supplier. When communication is needed, the suppliers can take advantage of the \emph{transaction\_check} and \emph{check\_other\_sup} routes. In general, there can be a cron which periodically calls the latter route of all suppliers to regularly facilitate communication between suppliers and brokers. 
+			%TODO:
+			%% security: SSL
+			%% security: API key, with different levels of access
+			%% PHP for extra points
+			%% Same code base, different env variables
+			%% Nginx
+			%% The whole setup with transactions on the DB
+			%% Supplier callback mechanism
+			%% Endpoints, and what they can do
+			%% Error handling 
+			%% Input validation
+			%? Distributed commit from the point of view of a supplier
+			%? Future work: Transition to prepared statements for SQL injection mitigation
+		
+		\subsection{Deployment}
+			\autoref{fig:supplier} shows the schematic representation of the suppliers' deployment. Each gets their own VM and DB, this is to emphasise the fact that they run fully separate from each other. One does notice the fact that the DBs are all hosted in the same Azure structure. This does not mean that this has to be done for deployment, it just means we saved some time and money by only setting up one Azure DB instance. The separation between different suppliers data is still ensured. All VMs also run the exact same code, the way they differentiate which DB to talk to for example is by taking advantage of environment variables. In this case, they are injected by PHP-FPM which can simply be configured using one configuration file on each VM. 
+			\begin{figure}[h!]
+				\centering
+				\includegraphics[width=0.7\linewidth]{images/supplier}
+				\caption{Detailed architecture of the suppliers}
+				\label{fig:supplier}
+			\end{figure}
+		
+	\section{Load testing}
+	
 \newpage
   \section{Extra information}
   \begin{itemize}
