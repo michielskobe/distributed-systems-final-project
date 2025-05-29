@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import java.sql.*;
 
 @RestController
-@RequestMapping("/reservation_status")
+@RequestMapping("/transaction_check")
 public class ReservationStatusController {
 
     private static final String SQL_URL = "jdbc:sqlserver://dapp-db.database.windows.net:1433;database=dapp-final-db;user=database@dapp-db;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";

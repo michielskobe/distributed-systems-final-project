@@ -12,6 +12,7 @@ import java.sql.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public class BackgroundWorker {
@@ -175,7 +176,10 @@ public class BackgroundWorker {
                     return false;
                 }
 
-                String payload = createReservationPayload(info, reservationId);
+                List<String> callbackUrls = getSupplierCallbackUrls(supplierUrl, supplierEndpoints);
+                callbackUrls.add("http://localhost:8080/transaction_check/" + reservationId);
+
+                String payload = createReservationPayload(info, reservationId, callbackUrls);
                 SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
 
                 if (!response.ok) {
@@ -192,7 +196,19 @@ public class BackgroundWorker {
         }
     }
 
-    private String createReservationPayload(SupplierProductInfo info, String reservationId) throws JsonProcessingException {
+    private List<String> getSupplierCallbackUrls(String supplierUrl, List<String> supplierEndpoints) {
+        List<String> callbackUrls = new ArrayList<>();
+
+        for (String endpoint : supplierEndpoints) {
+            if (!endpoint.equals(supplierUrl)){
+                String callback = endpoint + "/transaction_check";
+                callbackUrls.add(callback);
+            }
+        }
+        return callbackUrls;
+    }
+
+    private String createReservationPayload(SupplierProductInfo info, String reservationId, List<String> callbackUrls) throws JsonProcessingException {
         ObjectNode detail = objectMapper.createObjectNode();
         detail.put("id", info.productId);
         detail.put("amount", String.valueOf(info.amount));
@@ -200,10 +216,12 @@ public class BackgroundWorker {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.putArray("reservation_details").add(detail);
         payload.put("reservation_id", reservationId);
-        // TODO: Fix callbackUrl
-        String callbackUrl = "http://localhost:8080/reservation_status/" + reservationId;
-        payload.put("callback", callbackUrl);
 
+        ArrayNode callbacks = payload.putArray("callback");
+        for (String callbackUrl : callbackUrls) {
+            callbacks.add(callbackUrl);
+        }
+        System.out.println(objectMapper.writeValueAsString(payload));
         return objectMapper.writeValueAsString(payload);
     }
 
