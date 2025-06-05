@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+
+<div layout:fragment="content" class="container py-5 mb-auto">
+    <h1 class="mb-4 text-center">My Orders</h1>
+
+    <!-- If the user has no orders, show a message -->
+    <div th:if="${orders == null or #lists.isEmpty(orders)}" class="alert alert-info">
+        You have not placed any orders yet.
+        <a th:href="@{/order/bicycle}" class="alert-link">Start an order now.</a>
+    </div>
+
+    <!-- Otherwise, show a table of orders -->
+    <div th:if="${orders != null and !#lists.isEmpty(orders)}">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+            <tr>
+                <th scope="col">Order ID</th>
+                <th scope="col">Date Placed</th>
+                <th scope="col">Status</th>
+                <th scope="col">Items</th>
+                <th scope="col">Total Qty</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Loop through each order -->
+            <tr th:each="ord : ${orders}">
+                <td th:text="${ord.id}">123</td>
+                <td th:text="${#dates.format(ord.placedAt, 'yyyy-MM-dd HH:mm')}">2025-06-05 14:30</td>
+                <td>
+              <span th:classappend="
+                     ${ord.status} == 'PENDING' ? 'badge bg-warning' :
+                     ${ord.status} == 'COMPLETED' ? 'badge bg-success' :
+                     ${ord.status} == 'CANCELLED' ? 'badge bg-danger' :
+                     'badge bg-secondary'"
+                    th:text="${ord.status}">PENDING</span>
+                </td>
+                <td>
+                    <ul class="list-unstyled mb-0">
+                        <li th:each="item : ${ord.items}">
+                            <span th:text="${item.productName}">Bike A</span>
+                            <small>(x<span th:text="${item.quantity}">2</span>)</small>
+                        </li>
+                    </ul>
+                </td>
+                <td th:text="${ord.items.stream().mapToInt(i -> i.quantity).sum()}">3</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</html>

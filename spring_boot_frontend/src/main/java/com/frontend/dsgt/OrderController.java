@@ -3,6 +3,7 @@ package com.frontend.dsgt;
 import com.frontend.dsgt.model.Order;
 import com.frontend.dsgt.model.Product;
 import com.frontend.dsgt.service.ProductAggregationService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
@@ -10,6 +11,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
 import java.util.Map;
@@ -244,5 +246,40 @@ public class OrderController {
     public String cancelOrder(SessionStatus status) {
         status.setComplete();
         return "redirect:/";
+    }
+
+
+    /**
+     * “My Orders” – any authenticated user can see their own orders.
+     */
+    @GetMapping("/orders")
+    @PreAuthorize("isAuthenticated()")
+    public String myOrders(Model model, @AuthenticationPrincipal OidcUser user) {
+        // Assume orderService.findByUser(email) returns List<Order> for that user
+        String userEmail = user.getClaims().get("email").toString();
+        List<Order> myOrders = null; //orderService.findByUser(userEmail);
+
+        model.addAttribute("profile", user.getClaims());
+
+        model.addAttribute("pageTitle", "My Orders");
+        model.addAttribute("shopName", "The Biker Boys");
+        model.addAttribute("orders", myOrders);
+        return "orders";
+    }
+
+    /**
+     * “All Orders” – only managers can see every order.
+     */
+    @GetMapping("/admin/orders")
+    @PreAuthorize("hasAuthority('Manager')")
+    public String allOrders(Model model, @AuthenticationPrincipal OidcUser user) {
+        List<Order> allOrders = null; //orderService.findAll();
+
+        model.addAttribute("profile", user.getClaims());
+
+        model.addAttribute("pageTitle", "All Orders");
+        model.addAttribute("shopName", "The Biker Boys");
+        model.addAttribute("orders", allOrders);
+        return "admin-orders";
     }
 }

@@ -3,7 +3,7 @@
       xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/default}">
-<div layout:fragment="content" class="container py-5">
+<div layout:fragment="content" class="container py-5 mb-auto">
 
     <!-- Progress Indicator -->
     <div class="d-flex justify-content-center align-items-center mb-5">
@@ -91,7 +91,7 @@
 
                         <!-- INPUT GROUP WITH − and + BUTTONS -->
                         <div class="input-group justify-content-center">
-                            <button class="btn btn-outline-secondary btn-sm decrement-btn" type="button">−</button>
+                            <button class="btn btn-outline-secondary btn-sm decrement-btn fw-semibold px-3 fs-5" type="button">−</button>
                             <input type="number"
                                    min="0"
                                    th:attr="max=${bike.quantity}"
@@ -99,7 +99,7 @@
                                    th:value="${order.bicycleQuantities[bike.id] != null ? order.bicycleQuantities[bike.id] : 0}"
                                    class="form-control text-center qty-input"
                                    style="max-width: 80px;"/>
-                            <button class="btn btn-outline-secondary btn-sm increment-btn" type="button">+</button>
+                            <button class="btn btn-outline-secondary btn-sm increment-btn fw-semibold px-3 fs-5" type="button">+</button>
                         </div>
                     </div>
                 </div>

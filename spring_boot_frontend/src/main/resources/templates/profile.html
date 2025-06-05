@@ -3,10 +3,10 @@
       xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/default}">
-<div id="page" layout:fragment="content">
+<div id="page" layout:fragment="content" class="container py-4 mb-auto">
     <div class="container py-5">
         <!-- ================= Profile Card ================= -->
-        <div class="card mb-4 shadow-sm">
+        <div class="card mb-4 shadow-sm" data-aos="fade-up">
             <div class="row g-0 align-items-center">
                 <!-- Left: Profile Picture -->
                 <div class="col-md-3 text-center py-4">
@@ -20,7 +20,7 @@
                 <div class="col-md-9">
                     <div class="card-body">
                         <!-- Full Name -->
-                        <h2 class="card-title mb-1" th:text="${profile.get('name')}">Full Name</h2>
+                        <h2 class="card-title fw-bold mb-1" th:text="${profile.get('name')}">Full Name</h2>
                         <!-- Email & Verified Badge -->
                         <p class="mb-2">
                             <i class="bi bi-envelope-fill me-1"></i>
@@ -86,7 +86,7 @@
                                 <span th:text="${profile.get('iss')}">https://example.auth0.com/</span>
                                 <br />
                                 <i class="bi bi-clock-history me-1"></i>Last Updated:
-                                <span >
+                                <span th:text="${formattedUpdatedAt}">
                                 2025-06-05 14:00
                                 </span>
                             </small>
@@ -96,7 +96,7 @@
             </div>
         </div>
         <!-- =============== Collapsible Raw JSON for Debugging =============== -->
-        <div class="accordion mb-5" id="profileJsonAccordion">
+        <div class="accordion mb-4" id="profileJsonAccordion" data-aos="fade-up" data-aos-delay="100">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingJson">
                     <button class="accordion-button collapsed"
@@ -113,7 +113,7 @@
                      aria-labelledby="headingJson"
                      data-bs-parent="#profileJsonAccordion">
                     <div class="accordion-body p-0">
-                            <pre class="m-0 p-3 bg-light">
+                            <pre class="m-0 p-3 bg-body-secondary">
 <code class="json" id="profileJsonEl" th:text="${profileJson}"></code>
               </pre>
                     </div>
@@ -121,10 +121,13 @@
             </div>
         </div>
         <!-- =============== “Back to Home” Button =============== -->
-        <div class="text-end">
+        <div class="text-end d-flex flex-row column-gap-3 justify-content-end" data-aos="fade-up" data-aos-delay="200">
             <a th:href="@{/}" class="btn btn-outline-secondary">
-                <i class="bi bi-house-door-fill me-1"></i>Home
+                <i class="bi bi-house-door-fill me-2"></i>Home
             </a>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
+            </form>
         </div>
     </div>
 </div>

@@ -3,7 +3,7 @@
       xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/default}">
-<div layout:fragment="content" class="container py-5">
+<div layout:fragment="content" class="container py-5 mb-auto">
 
     <!-- Progress Indicator (all completed) -->
     <div class="d-flex justify-content-center align-items-center mb-5">
@@ -81,8 +81,8 @@
                     <div class="card-header text-center fw-semibold">[[${bike.name}]]</div>
                     <img th:src="@{${bike.imageUrl}}"
                          th:alt="${bike.name}"
-                         class="card-img-top object-fit-contain rounded-4"
-                         style="height: 200px;"/>
+                         class="card-img-top object-fit-cover rounded-4"
+                         style="height: 240px;"/>
 
                     <div class="card-body d-flex flex-column text-center">
                         <p class="card-text text-muted flex-grow-1" th:text="${bike.description}">
@@ -107,8 +107,8 @@
                     <div class="card-header text-center fw-semibold">[[${led.name}]]</div>
                     <img th:src="@{${led.imageUrl}}"
                          th:alt="${led.name}"
-                         class="card-img-top object-fit-contain rounded-4"
-                         style="height: 200px;"/>
+                         class="card-img-top object-fit-cover rounded-4"
+                         style="height: 240px;"/>
 
                     <div class="card-body d-flex flex-column text-center">
                         <p class="card-text text-muted flex-grow-1" th:text="${led.description}">
@@ -133,8 +133,8 @@
                     <div class="card-header text-center fw-semibold">[[${bat.name}]]</div>
                     <img th:src="@{${bat.imageUrl}}"
                          th:alt="${bat.name}"
-                         class="card-img-top object-fit-contain rounded-4"
-                         style="height: 200px;"/>
+                         class="card-img-top object-fit-cover rounded-4"
+                         style="height: 240px;"/>
 
                     <div class="card-body d-flex flex-column text-center">
                         <p class="card-text text-muted flex-grow-1" th:text="${bat.description}">
