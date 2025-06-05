@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+<div id="page" layout:fragment="content">
+
+    <!-- Floating Success Alert (below navbar) -->
+    <div th:if="${successMessage}"
+         id="flashAlert"
+         class="fixed-alert position-fixed start-50 translate-middle-x"
+         style="top: 130px; z-index: 1050; width: auto; max-width: 90%;">
+        <div class="alert alert-success alert-dismissible fade show mb-0" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Hero -->
+    <section class="hero position-relative text-white d-flex align-items-center rounded-4" data-aos="fade-down">
+        <div class="container text-center py-5">
+            <h1 class="display-3 fw-bold mb-3">
+                <i class="bi bi-bicycle me-2"></i>Welcome to The Biker Boys
+            </h1>
+            <p class="lead mb-4">Your one-stop shop for custom bicycles, LED kits and battery solutions.</p>
+                <a th:href="@{/order/bicycle}" class="btn btn-lg btn-light me-3">
+                    <i class="bi bi-truck me-1"></i>Order Now
+                </a>
+                <a th:href="@{/products}" class="btn btn-lg btn-outline-light">
+                    <i class="bi bi-grid me-1"></i>Browse Products
+                </a>
+        </div>
+
+        <!-- Scroll Down Arrow -->
+        <div class="scroll-down">
+            <i class="bi bi-chevron-down fs-1"></i>
+        </div>
+    </section>
+
+    <!-- Why Choose Us? -->
+    <section class="container py-5">
+        <h2 class="text-center fw-bold mb-3" data-aos="fade-up">
+            <i class="bi bi-check2-circle me-2 text-primary"></i>Why Choose Us?
+        </h2>
+        <div class="row g-4">
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                <div class="feature-card p-4 h-100 text-center">
+                    <i class="bi bi-speedometer2 fs-1 mb-3 text-primary"></i>
+                    <h5 class="fw-semibold mb-2">High-Performance Bikes</h5>
+                    <p class="text-muted">Engineered for every terrain, from city streets to mountain trails.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                <div class="feature-card p-4 h-100 text-center">
+                    <i class="bi bi-lightbulb-fill fs-1 mb-3 text-primary"></i>
+                    <h5 class="fw-semibold mb-2">Vibrant LED Kits</h5>
+                    <p class="text-muted">Illuminate your ride with durable, customizable LED strip solutions.</p>
+                </div>
+            </div>
+            <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                <div class="feature-card p-4 h-100 text-center">
+                    <i class="bi bi-battery-full fs-1 mb-3 text-primary"></i>
+                    <h5 class="fw-semibold mb-2">Eco-Friendly Batteries</h5>
+                    <p class="text-muted">Long-lasting power packs, optimized for range and sustainability.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="py-5 bg-body-secondary rounded-4" data-aos="fade-up" data-aos-delay="400">
+        <div class="container">
+            <h2 class="text-center fw-bold mb-5">
+                <i class="bi bi-chat-quote-fill me-2 text-primary"></i>What Our Customers Say
+            </h2>
+            <div class="row g-4">
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="500">
+                    <div class="testimonial-card p-4 h-100">
+                        <p class="fst-italic">
+                            <i class="bi bi-quote fs-3 text-primary me-2"></i>
+                            “Absolutely love the LED kit – makes night rides epic!”
+                        </p>
+                        <p class="fw-semibold mb-0">Alicia M., Amsterdam</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="600">
+                    <div class="testimonial-card p-4 h-100">
+                        <p class="fst-italic">
+                            <i class="bi bi-quote fs-3 text-primary me-2"></i>
+                            “Top quality bikes and fantastic customer support. 10/10!”
+                        </p>
+                        <p class="fw-semibold mb-0">Liam V., Antwerp</p>
+                    </div>
+                </div>
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="700">
+                    <div class="testimonial-card p-4 h-100">
+                        <p class="fst-italic">
+                            <i class="bi bi-quote fs-3 text-primary me-2"></i>
+                            “My battery lasted a whole tour through the Ardennes – amazing!”
+                        </p>
+                        <p class="fw-semibold mb-0">Sophie D., Brussels</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Meet the Developers -->
+    <section class="container py-5">
+        <h2 class="text-center fw-bold mb-3" data-aos="fade-up">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Meet the Developers
+        </h2>
+        <p class="text-muted text-center mb-5" data-aos="fade-up" data-aos-delay="100">
+            Our development team is made up of four passionate coders who bring creativity, precision and dedication to every line of code. With a shared love for innovation and cycling, Wout, Robbe, Kobe and Lander have combined their skills to build a platform that’s not only functional but also visually engaging. Connect with them on GitHub and LinkedIn to follow their journey and explore more of their work.
+        </p>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-4 justify-content-center">
+            <!-- Developer 1 -->
+            <div class="col" data-aos="zoom-in" data-aos-delay="300">
+                <div class="card h-100 text-center shadow-sm border rounded-4">
+                    <div class="card-body">
+                        <img src="https://media.licdn.com/dms/image/v2/D4D03AQHIK9EZF6oqYw/profile-displayphoto-shrink_100_100/profile-displayphoto-shrink_100_100/0/1692993090270?e=1753315200&v=beta&t=e9kEWrpstEU_TXgNlV77WEi0OTNY-8iUeSh6jcYOxxg" alt="Wout Lyen" class="rounded-circle mb-3 profile-img" width="100" height="100">
+                        <h5 class="card-title mb-1">Wout Lyen</h5>
+                        <p class="text-muted mb-3">Front-End Developer</p>
+                        <div class="social-icons d-flex justify-content-center gap-3">
+                            <a href="https://www.linkedin.com/in/wout-lyen/" target="_blank" class="text-decoration-none"><i class="bi bi-linkedin fs-5"></i></a>
+                            <a href="https://github.com/woutlyen" target="_blank" class="text-decoration-none"><i class="bi bi-github fs-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Developer 2 -->
+            <div class="col" data-aos="zoom-in" data-aos-delay="400">
+                <div class="card h-100 text-center shadow-sm border rounded-4">
+                    <div class="card-body">
+                        <img src="https://media.licdn.com/dms/image/v2/D4E03AQFvZJKiQ_FfjA/profile-displayphoto-shrink_100_100/profile-displayphoto-shrink_100_100/0/1679748237051?e=1753315200&v=beta&t=Apd_uT5uApI0XRuBodYnxTTM8KAVnRhM9Jh_fLtfmIw" alt="Robbe Decapmaker" class="rounded-circle mb-3 profile-img" width="100" height="100">
+                        <h5 class="card-title mb-1">Robbe Decapmaker</h5>
+                        <p class="text-muted mb-3">Supplier Developer</p>
+                        <div class="social-icons d-flex justify-content-center gap-3">
+                            <a href="https://www.linkedin.com/in/robbe-decapmaker/" target="_blank" class="text-decoration-none"><i class="bi bi-linkedin fs-5"></i></a>
+                            <a href="https://github.com/debber1" target="_blank" class="text-decoration-none"><i class="bi bi-github fs-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Developer 3 -->
+            <div class="col" data-aos="zoom-in" data-aos-delay="500">
+                <div class="card h-100 text-center shadow-sm border rounded-4">
+                    <div class="card-body">
+                        <img src="https://media.licdn.com/dms/image/v2/D4E03AQH0-uEiIK89WQ/profile-displayphoto-shrink_100_100/profile-displayphoto-shrink_100_100/0/1686752325560?e=1753315200&v=beta&t=t9YFZZol_I068jC_Up2cXzE9d9fBdU4Ket9LE4NiR2Y" alt="Kobe Michiels" class="rounded-circle mb-3 profile-img" width="100" height="100">
+                        <h5 class="card-title mb-1">Kobe Michiels</h5>
+                        <p class="text-muted mb-3">Broker Developer</p>
+                        <div class="social-icons d-flex justify-content-center gap-3">
+                            <a href="https://www.linkedin.com/in/kobe-michiels/" target="_blank" class="text-decoration-none"><i class="bi bi-linkedin fs-5"></i></a>
+                            <a href="https://github.com/michielskobe" target="_blank" class="text-decoration-none"><i class="bi bi-github fs-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Developer 4 -->
+            <div class="col" data-aos="zoom-in" data-aos-delay="600">
+                <div class="card h-100 text-center shadow-sm border rounded-4">
+                    <div class="card-body">
+                        <img src="https://media.licdn.com/dms/image/v2/D4E03AQF6akk1xbiRzQ/profile-displayphoto-shrink_100_100/B4EZUd2LfxGgAU-/0/1739962497389?e=1753315200&v=beta&t=fQuAbEeAqTp1EnHyfpCB0_5o0ED63Qz543suWiUAR74" alt="Lander Van Loock" class="rounded-circle mb-3 profile-img" width="100" height="100">
+                        <h5 class="card-title mb-1">Lander Van Loock</h5>
+                        <p class="text-muted mb-3">Broker Developer</p>
+                        <div class="social-icons d-flex justify-content-center gap-3">
+                            <a href="https://www.linkedin.com/in/lander-van-loock/" target="_blank" class="text-decoration-none"><i class="bi bi-linkedin fs-5"></i></a>
+                            <a href="https://github.com/Lander0606" target="_blank" class="text-decoration-none"><i class="bi bi-github fs-5"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Accordion -->
+    <section class="container py-5">
+        <h2 class="text-center fw-bold mb-5" data-aos="fade-up" data-aos-delay="650"><i class="bi bi-question-circle me-2 text-primary"></i>Frequently Asked Questions</h2>
+        <div class="accordion" id="faqAccordion">
+            <div class="accordion-item" data-aos="fade-up" data-aos-delay="700">
+                <h2 class="accordion-header" id="faqHeading1">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                        What is your return policy?
+                    </button>
+                </h2>
+                <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        We offer a 30-day money-back guarantee on all products. Just contact support for a return label.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" data-aos="fade-up" data-aos-delay="800">
+                <h2 class="accordion-header" id="faqHeading2">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                        Do you ship internationally?
+                    </button>
+                </h2>
+                <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        Yes! We ship to most countries worldwide. Shipping costs and times vary by destination.
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item" data-aos="fade-up" data-aos-delay="900">
+                <h2 class="accordion-header" id="faqHeading3">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                        How long does shipping take?
+                    </button>
+                </h2>
+                <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        Our products ship via ground freight and usually arrive within 3–5 business days.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final Call-to-Action -->
+    <section class="pb-5 pt-2 text-center" data-aos="fade-up" data-aos-delay="1000">
+        <div class="container text-white bg-primary p-5 rounded-4 cta-container">
+            <h2 class="fw-bold mb-3">
+                <i class="bi bi-rocket-fill me-2"></i>Ready to Transform Your Ride?
+            </h2>
+            <p class="lead mb-4">
+                <i class="me-1"></i>
+                Browse our cutting-edge gear and customize your bike today.
+            </p>
+            <a th:href="@{/order/bicycle}" class="btn btn-lg btn-outline-light">
+                <i class="bi bi-cart-plus me-1"></i>Shop Now
+            </a>
+        </div>
+    </section>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const alertEl = document.getElementById('flashAlert');
+            if (!alertEl) return;
+
+            window.addEventListener('scroll', () => {
+                // If scrolled down more than 200px, hide; else show
+                if (window.scrollY > 200) {
+                    alertEl.classList.add('hidden');
+                } else {
+                    alertEl.classList.remove('hidden');
+                }
+            });
+        });
+    </script>
+</div>
+</html>
+

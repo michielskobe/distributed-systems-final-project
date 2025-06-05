@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+<div id="page" layout:fragment="content">
+    <div class="container py-5">
+        <!-- ================= Profile Card ================= -->
+        <div class="card mb-4 shadow-sm">
+            <div class="row g-0 align-items-center">
+                <!-- Left: Profile Picture -->
+                <div class="col-md-3 text-center py-4">
+                    <img
+                            th:src="${profile.get('picture')}"
+                            alt="Profile Picture"
+                            class="rounded-circle img-fluid"
+                            style="max-width: 150px; max-height: 150px;" />
+                </div>
+                <!-- Right: Profile Details -->
+                <div class="col-md-9">
+                    <div class="card-body">
+                        <!-- Full Name -->
+                        <h2 class="card-title mb-1" th:text="${profile.get('name')}">Full Name</h2>
+                        <!-- Email & Verified Badge -->
+                        <p class="mb-2">
+                            <i class="bi bi-envelope-fill me-1"></i>
+                            <span th:text="${profile.get('email')}">user@example.com</span>
+                            <span th:if="${profile.get('email_verified')}"
+                                  class="badge bg-success ms-2">
+                                <i class="bi bi-award-fill me-1"></i>Email Verified
+                                </span>
+                            <span th:unless="${profile.get('email_verified')}"
+                                  class="badge bg-warning text-dark ms-2">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Unverified
+                                </span>
+                        </p>
+                        <hr />
+                        <div class="row mb-3">
+                            <!-- Given Name / Family Name / Nickname -->
+                            <div class="col-sm-4 mb-2">
+                                <strong>Given Name:</strong>
+                                <span th:text="${profile.get('given_name')}">Wout</span>
+                            </div>
+                            <div class="col-sm-4 mb-2">
+                                <strong>Family Name:</strong>
+                                <span th:text="${profile.get('family_name')}">Lyen</span>
+                            </div>
+                            <div class="col-sm-4 mb-2">
+                                <strong>Nickname:</strong>
+                                <span th:text="${profile.get('nickname')}">woutlyen</span>
+                            </div>
+                        </div>
+                        <!-- Auth0 Roles (Manager vs. User) -->
+                        <div class="mb-3">
+                            <strong>Roles:</strong>
+                            <span th:if="${profile.get('https://spring-boot.example.com/roles') != null}">
+                                    <span th:each="r : ${profile.get('https://spring-boot.example.com/roles')}"
+                                          th:switch="${r}">
+                                        <!-- Manager: red badge, briefcase icon -->
+                                        <span th:case="'Manager'" class="badge bg-warning text-dark me-1">
+                                        <i class="bi bi-briefcase-fill me-1"></i>
+                                        <span th:text="${r}">Manager</span>
+                                        </span>
+                                        <!-- User: blue‐light badge, person icon -->
+                                        <span th:case="'User'" class="badge bg-info text-dark me-1">
+                                        <i class="bi bi-person-fill me-1"></i>
+                                        <span th:text="${r}">User</span>
+                                        </span>
+                                        <!-- Fallback for any other role -->
+                                        <span th:case="*" class="badge bg-light text-dark me-1">
+                                        <i class="bi bi-question-circle me-1"></i>
+                                        <span th:text="${r}">Other</span>
+                                        </span>
+                                    </span>
+                                </span>
+                            <span th:if="${profile.get('https://spring-boot.example.com/roles') == null or
+                #lists.isEmpty(profile.get('https://spring-boot.example.com/roles'))}"
+                                  class="text-muted">
+                                None
+                                </span>
+                        </div>
+                        <!-- Issuer and Last Updated (optional / muted) -->
+                        <div class="text-muted">
+                            <small>
+                                <i class="bi bi-link-45deg me-1"></i>Issuer:
+                                <span th:text="${profile.get('iss')}">https://example.auth0.com/</span>
+                                <br />
+                                <i class="bi bi-clock-history me-1"></i>Last Updated:
+                                <span >
+                                2025-06-05 14:00
+                                </span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- =============== Collapsible Raw JSON for Debugging =============== -->
+        <div class="accordion mb-5" id="profileJsonAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingJson">
+                    <button class="accordion-button collapsed"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#collapseJson"
+                            aria-expanded="false"
+                            aria-controls="collapseJson">
+                        <i class="bi bi-code-slash me-2"></i>View Raw Profile JSON
+                    </button>
+                </h2>
+                <div id="collapseJson"
+                     class="accordion-collapse collapse"
+                     aria-labelledby="headingJson"
+                     data-bs-parent="#profileJsonAccordion">
+                    <div class="accordion-body p-0">
+                            <pre class="m-0 p-3 bg-light">
+<code class="json" id="profileJsonEl" th:text="${profileJson}"></code>
+              </pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- =============== “Back to Home” Button =============== -->
+        <div class="text-end">
+            <a th:href="@{/}" class="btn btn-outline-secondary">
+                <i class="bi bi-house-door-fill me-1"></i>Home
+            </a>
+        </div>
+    </div>
+</div>
+</html>

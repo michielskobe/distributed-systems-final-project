@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+<div layout:fragment="content" class="container py-5">
+
+    <!-- Progress Indicator (all completed) -->
+    <div class="d-flex justify-content-center align-items-center mb-5">
+        <div class="wizard-step completed me-4"><div class="circle">1</div><div class="label">Bicycle</div></div>
+        <div class="wizard-line completed"></div>
+        <div class="wizard-step completed mx-4"><div class="circle">2</div><div class="label">LED</div></div>
+        <div class="wizard-line completed"></div>
+        <div class="wizard-step completed mx-4"><div class="circle">3</div><div class="label">Battery</div></div>
+        <div class="wizard-line completed"></div>
+        <div class="wizard-step active ms-4"><div class="circle">4</div><div class="label">Order</div></div>
+    </div>
+
+    <!-- If order is empty, show “start ordering” message + 3 buttons -->
+    <div th:if="${!order.hasAnySelection()}" class="text-center py-5">
+        <h2 class="mb-3 fw-bold" data-aos="fade-up">Your order is empty!</h2>
+        <p class="mb-4 text-muted" data-aos="fade-up" data-aos-delay="50">Start by choosing at least one item below</p>
+        <div class="d-flex justify-content-center gap-3" data-aos="fade-up" data-aos-delay="150">
+            <a th:href="@{/order/bicycle}" class="btn btn-lg btn-primary">Choose Bicycles</a>
+            <a th:href="@{/order/led}"     class="btn btn-lg btn-outline-secondary">Choose LED Strips</a>
+            <a th:href="@{/order/battery}" class="btn btn-lg btn-outline-secondary">Choose Batteries</a>
+        </div>
+
+        <!--<div class="mt-5">
+            <button class="btn btn-success btn-lg" disabled>
+                <i class="bi bi-check-lg me-1"></i>Complete Order
+            </button>
+        </div>-->
+        <!-- Skip rendering the rest of summary -->
+        <th:block th:remove="all"></th:block>
+    </div>
+
+    <!-- If order is not empty, render the normal summary -->
+    <div th:unless="${!order.hasAnySelection()}">
+
+        <!-- Back & Complete -->
+        <div class="d-flex justify-content-between align-items-center my-5">
+            <div class="d-flex flex-row">
+                <form th:action="@{/order/cancel}" method="post">
+                    <button type="submit" class="btn btn-outline-danger btn-lg me-2">
+                        <i class="bi bi-x-lg me-1"></i>Cancel
+                    </button>
+                </form>
+
+                <form th:action="@{/order/battery}" method="get">
+                    <button type="submit" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-caret-left me-1"></i>Back
+                    </button>
+                </form>
+            </div>
+
+            <div>
+                <h2 class="text-center fw-bold mb-3" data-aos="fade-up">
+                    Review & Complete Your Order
+                </h2>
+                <p class="text-center text-muted mb-4" data-aos="fade-up" data-aos-delay="50">
+                    Double-check your selections before placing the order.
+                </p>
+            </div>
+
+            <form th:action="@{/order/complete}" method="post">
+                <button class="btn btn-success btn-lg">
+                    <i class="bi bi-check-lg me-1"></i>Complete Order
+                </button>
+            </form>
+        </div>
+
+        <!-- Render each selected product as a card -->
+        <section class="row g-4 mb-5">
+            <!-- Bicycles -->
+            <div class="col-12 col-md-4"
+                 th:each="bike : ${bicycles}"
+                 th:if="${order.bicycleQuantities[bike.id]} != null"
+                 data-aos="fade-up">
+                <div class="card product-card h-100 position-relative overflow-hidden rounded-4 img-scale d-flex flex-column">
+                    <div class="card-header text-center fw-semibold">[[${bike.name}]]</div>
+                    <img th:src="@{${bike.imageUrl}}"
+                         th:alt="${bike.name}"
+                         class="card-img-top object-fit-contain rounded-4"
+                         style="height: 200px;"/>
+
+                    <div class="card-body d-flex flex-column text-center">
+                        <p class="card-text text-muted flex-grow-1" th:text="${bike.description}">
+                            Bike description…
+                        </p>
+                        <p class="fw-bold">Quantity: <span th:text="${order.bicycleQuantities[bike.id]}">0</span></p>
+                        <form th:action="@{/order/bicycle}" method="get">
+                            <button class="btn btn-outline-secondary mt-auto">
+                                <i class="bi bi-pencil me-1"></i>Change
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LED Strips -->
+            <div class="col-12 col-md-4"
+                 th:each="led : ${ledstrips}"
+                 th:if="${order.ledQuantities[led.id]} != null"
+                 data-aos="fade-up" data-aos-delay="100">
+                <div class="card product-card h-100 position-relative overflow-hidden rounded-4 img-scale d-flex flex-column">
+                    <div class="card-header text-center fw-semibold">[[${led.name}]]</div>
+                    <img th:src="@{${led.imageUrl}}"
+                         th:alt="${led.name}"
+                         class="card-img-top object-fit-contain rounded-4"
+                         style="height: 200px;"/>
+
+                    <div class="card-body d-flex flex-column text-center">
+                        <p class="card-text text-muted flex-grow-1" th:text="${led.description}">
+                            LED description…
+                        </p>
+                        <p class="fw-bold">Quantity: <span th:text="${order.ledQuantities[led.id]}">0</span></p>
+                        <form th:action="@{/order/led}" method="get">
+                            <button class="btn btn-outline-secondary mt-auto">
+                                <i class="bi bi-pencil me-1"></i>Change
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batteries -->
+            <div class="col-12 col-md-4"
+                 th:each="bat : ${batteries}"
+                 th:if="${order.batteryQuantities[bat.id]} != null"
+                 data-aos="fade-up" data-aos-delay="200">
+                <div class="card product-card h-100 position-relative overflow-hidden rounded-4 img-scale d-flex flex-column">
+                    <div class="card-header text-center fw-semibold">[[${bat.name}]]</div>
+                    <img th:src="@{${bat.imageUrl}}"
+                         th:alt="${bat.name}"
+                         class="card-img-top object-fit-contain rounded-4"
+                         style="height: 200px;"/>
+
+                    <div class="card-body d-flex flex-column text-center">
+                        <p class="card-text text-muted flex-grow-1" th:text="${bat.description}">
+                            Battery description…
+                        </p>
+                        <p class="fw-bold">Quantity: <span th:text="${order.batteryQuantities[bat.id]}">0</span></p>
+                        <form th:action="@{/order/battery}" method="get">
+                            <button class="btn btn-outline-secondary mt-auto">
+                                <i class="bi bi-pencil me-1"></i>Change
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+</html>

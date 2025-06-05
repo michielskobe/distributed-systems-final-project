@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+</head>
+<footer th:fragment="footer" class="bg-dark text-white pt-4 mt-auto border-top border-light">
+    <div class="container">
+        <div class="row text-center text-md-start align-items-center">
+            <!-- Logo -->
+            <div class="col-12 col-md-2 mb-3 mb-md-0">
+                <img src="/images/TheBikerBoysBorder.png" alt="The Biker Boys Logo" class="img-fluid" style="max-height: 120px;">
+            </div>
+
+            <!-- Branding & Social -->
+            <div class="col-12 col-md-6 mb-3 mb-md-0">
+                <h5 class="fw-bold">The Biker Boys</h5>
+                <p class="text-white-50">Creating innovative biking solutions with LED flair and eco-friendly power.</p>
+                <div class="d-flex gap-3">
+                    <a href="#" class="text-white fs-5"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="text-white fs-5"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="text-white fs-5"><i class="fab fa-instagram"></i></a>
+                    <a href="https://www.linkedin.com/company/the-biker-boys" class="text-white fs-5"><i class="fab fa-linkedin"></i></a>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="col-12 col-md-4 text-md-end">
+                <ul class="list-unstyled">
+                    <li><a href="#" class="text-white text-decoration-none" th:href="@{/}">Home</a></li>
+                    <li><a href="#" class="text-white text-decoration-none" th:href="@{/products}">Products</a></li>
+                    <li><a href="#" class="text-white text-decoration-none" th:href="@{/order/bicycle}">Order</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <hr class="border-light">
+        <div class="text-center text-white-50 small pb-3">
+            &copy; <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2024</span> The Biker Boys. All rights reserved.
+        </div>
+    </div>
+</footer>
+</html>

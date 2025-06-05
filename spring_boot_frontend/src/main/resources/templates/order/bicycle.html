@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+<div layout:fragment="content" class="container py-5">
+
+    <!-- Progress Indicator -->
+    <div class="d-flex justify-content-center align-items-center mb-5">
+        <div class="wizard-step active me-4">
+            <div class="circle">1</div>
+            <div class="label">Bicycle</div>
+        </div>
+        <div class="wizard-line"></div>
+        <div class="wizard-step mx-4"><div class="circle">2</div><div class="label">LED</div></div>
+        <div class="wizard-line"></div>
+        <div class="wizard-step mx-4"><div class="circle">3</div><div class="label">Battery</div></div>
+        <div class="wizard-line"></div>
+        <div class="wizard-step ms-4"><div class="circle">4</div><div class="label">Order</div></div>
+    </div>
+
+    <form th:object="${order}" th:action="@{/order/bicycle}" method="post" id="bikeForm">
+        <!-- Cancel / Title / Next + Review -->
+        <div class="d-flex justify-content-between align-items-center my-5">
+            <div>
+                <button type="submit" formaction="/order/cancel" formmethod="post"
+                        class="btn btn-outline-danger btn-lg me-2">
+                    <i class="bi bi-x-lg me-1"></i>Cancel
+                </button>
+
+                <a th:href="@{/}" class="btn btn-outline-secondary btn-lg"><i class="bi bi-house me-1"></i>Home</a>
+            </div>
+
+            <div>
+                <h2 class="text-center fw-bold mb-3" data-aos="fade-up">
+                    Step [[${step}]]: [[${stepLabel}]]
+                </h2>
+                <p class="text-center text-muted mb-4" data-aos="fade-up" data-aos-delay="50">
+                    [[${stepDescription}]]
+                </p>
+            </div>
+
+            <div>
+                <!-- Next always enabled -->
+                <button type="submit" name="action" value="next"
+                        class="btn btn-primary btn-lg me-2">
+                    Next <i class="bi bi-caret-right ms-1"></i>
+                </button>
+
+                <!-- Review is always shown but disabled if nothing anywhere selected -->
+                <button type="submit" name="action" value="review"
+                        class="btn btn-success btn-lg">
+                    <i class="bi bi-eye me-1"></i>Review Order
+                </button>
+            </div>
+        </div>
+
+        <!-- If fetching failed, show retry -->
+        <div th:if="${fetchError}" class="alert alert-warning text-center mb-4">
+            Bicycles are temporarily unavailable.
+            <a th:href="@{/order/bicycle}" class="alert-link">Retry</a>
+        </div>
+
+        <!-- Grid of bicycles -->
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4" data-aos="fade-up" data-aos-delay="100">
+            <div class="col" th:each="bike : ${bicycles}">
+                <!-- Add .selected if (quantities[bike.id] != null AND quantities[bike.id] > 0) -->
+                <div th:classappend="${order.bicycleQuantities[bike.id] != null and order.bicycleQuantities[bike.id] > 0} ? ' selected' : ''"
+                     class="card selectable-card h-100 position-relative overflow-hidden rounded-4 img-scale d-flex flex-column">
+
+                    <!-- IMAGE -->
+                    <img th:src="@{${bike.imageUrl}}"
+                         th:alt="${bike.name}"
+                         class="card-img-top object-fit-cover rounded-4"
+                         style="height: 240px;"/>
+
+                    <!-- AVAILABILITY BADGE (always visible) -->
+                    <h5 class="availability-badge mt-3">
+              <span class="badge bg-success px-3 py-2 my-1 fs-6">
+                <i class="bi bi-stack me-1"></i>
+                <span th:text="${bike.quantity}">0</span> left
+              </span>
+                    </h5>
+
+                    <!-- CARD BODY WITH QUANTITY -->
+                    <div class="card-body d-flex flex-column text-center flex-grow-1">
+                        <h5 class="card-title fw-semibold" th:text="${bike.name}">Bike Name</h5>
+                        <p class="card-text text-muted flex-grow-1" th:text="${bike.description}">
+                            Bike description…
+                        </p>
+
+                        <!-- INPUT GROUP WITH − and + BUTTONS -->
+                        <div class="input-group justify-content-center">
+                            <button class="btn btn-outline-secondary btn-sm decrement-btn" type="button">−</button>
+                            <input type="number"
+                                   min="0"
+                                   th:attr="max=${bike.quantity}"
+                                   th:name="${'bikeQty_' + bike.id}"
+                                   th:value="${order.bicycleQuantities[bike.id] != null ? order.bicycleQuantities[bike.id] : 0}"
+                                   class="form-control text-center qty-input"
+                                   style="max-width: 80px;"/>
+                            <button class="btn btn-outline-secondary btn-sm increment-btn" type="button">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- JS: increment/decrement and toggle .selected in real time -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('#bikeForm .selectable-card');
+            cards.forEach(card => {
+                const input = card.querySelector('.qty-input');
+                const increment = card.querySelector('.increment-btn');
+                const decrement = card.querySelector('.decrement-btn');
+                const max = parseInt(input.getAttribute('max'));
+
+                function updateUI() {
+                    const val = parseInt(input.value) || 0;
+                    if (val > 0) card.classList.add('selected');
+                    else card.classList.remove('selected');
+                }
+
+                increment.addEventListener('click', () => {
+                    let val = parseInt(input.value) || 0;
+                    if (val < max) {
+                        input.value = val + 1;
+                        updateUI();
+                    }
+                });
+                decrement.addEventListener('click', () => {
+                    let val = parseInt(input.value) || 0;
+                    if (val > 0) {
+                        input.value = val - 1;
+                        updateUI();
+                    }
+                });
+                input.addEventListener('input', () => {
+                    let val = parseInt(input.value) || 0;
+                    if (val < 0) input.value = 0;
+                    if (val > max) input.value = max;
+                    updateUI();
+                });
+                updateUI();
+            });
+        });
+    </script>
+
+</div>
+</html>

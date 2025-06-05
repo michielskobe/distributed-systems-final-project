@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/default}">
+
+<div id="page" layout:fragment="content">
+
+    <!-- Page Intro -->
+    <section class="bg-secondary-subtle rounded-4 text-center py-5 my-5" data-aos="fade-down">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-4">
+                <i class="bi bi-cart4 text-primary me-2"></i>Our Products
+            </h1>
+            <p class="lead text-muted mb-5 mx-5">
+                Browse our full line-up of high-performance bicycles, vibrant LED kits and eco-friendly batteries. Click “Order Now” to customize your perfect ride.
+            </p>
+            <a th:href="@{/order/bicycle}" class="btn btn-lg btn-light me-3">
+                <i class="bi bi-truck me-1"></i>Order Now
+            </a>
+            <a th:href="@{/}" class="btn btn-lg btn-outline-secondary">
+                <i class="bi bi-house me-1"></i>Back To Home
+            </a>
+        </div>
+    </section>
+
+    <!-- Bicycles Section -->
+    <section class="container my-5">
+        <h2 class="text-center fw-bold mb-4" data-aos="fade-up">
+            <i class="bi bi-bicycle me-2 text-primary"></i>Our Bicycles
+        </h2>
+        <p class="text-center text-muted mb-5" data-aos="fade-up" data-aos-delay="50">
+            Explore our range of custom bicycles designed for performance and style.
+        </p>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+            <div class="col" th:each="bike : ${bicycles}">
+                <div data-aos="fade-up">
+                    <div class="card product-card h-100 position-relative overflow-hidden rounded-4">
+                        <!-- Image -->
+                        <img loading="lazy"
+                             th:src="@{${bike.imageUrl}}"
+                             th:alt="${bike.name}"
+                             class="card-img-top object-fit-cover rounded-4"
+                             style="height: 240px;"
+                        />
+
+                        <!-- Card body -->
+                        <div class="card-body d-flex flex-column text-center">
+                            <h5 class="card-title fw-semibold" th:text="${bike.name}">Bike Name</h5>
+                            <p class="card-text text-muted flex-grow-1" th:text="${bike.description}">
+                                Bike description…
+                            </p>
+
+                            <!-- Availability badge at bottom center -->
+                            <h5 class="availability-badge mt-3">
+                            <span class="badge bg-success px-3 py-2 my-1 fs-6">
+                                <i class="bi bi-stack me-1"></i>
+                                <span th:text="${bike.quantity}">0</span> left
+                            </span>
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LED Strips Section -->
+    <section class="container my-5 border-top pt-5">
+        <h2 class="text-center fw-bold mb-4" data-aos="fade-up" data-aos-delay="100">
+            <i class="bi bi-lightbulb-fill me-2 text-primary"></i>LED Strips
+        </h2>
+        <p class="text-center text-muted mb-5" data-aos="fade-up" data-aos-delay="150">
+            Illuminate your ride with our vibrant and durable LED strip kits.
+        </p>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+            <div class="col" th:each="led : ${ledstrips}">
+                <div data-aos="fade-up" data-aos-delay="200">
+                    <div class="card product-card h-100 position-relative overflow-hidden rounded-4">
+                        <!-- Image -->
+                        <img loading="lazy"
+                             th:src="@{${led.imageUrl}}"
+                             th:alt="${led}"
+                             class="card-img-top object-fit-cover rounded-4"
+                             style="height: 240px;"
+                        />
+
+                        <!-- Card body -->
+                        <div class="card-body d-flex flex-column text-center">
+                            <h5 class="card-title fw-semibold" th:text="${led.name}">Led Name</h5>
+                            <p class="card-text text-muted flex-grow-1" th:text="${led.description}">
+                                Led description…
+                            </p>
+
+                            <!-- Availability badge at bottom center -->
+                            <h5 class="availability-badge mt-3">
+                            <span class="badge bg-success px-3 py-2 my-1 fs-6">
+                                <i class="bi bi-stack me-1"></i>
+                                <span th:text="${led.quantity}">0</span> left
+                            </span>
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Batteries Section -->
+    <section class="container my-5 border-top pt-5">
+        <h2 class="text-center fw-bold mb-4" data-aos="fade-up" data-aos-delay="300">
+            <i class="bi bi-battery-full me-2 text-primary"></i>Batteries
+        </h2>
+        <p class="text-center text-muted mb-5" data-aos="fade-up" data-aos-delay="350">
+            Power your adventures with our long-lasting, eco-friendly batteries.
+        </p>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+            <div class="col" th:each="battery : ${batteries}">
+                <div data-aos="fade-up" data-aos-delay="400">
+                    <div class="card product-card h-100 position-relative overflow-hidden rounded-4">
+                        <!-- Image -->
+                        <img loading="lazy"
+                             th:src="@{${battery.imageUrl}}"
+                             th:alt="${battery.name}"
+                             class="card-img-top object-fit-cover rounded-4"
+                             style="height: 240px;"
+                        />
+
+                        <!-- Card body -->
+                        <div class="card-body d-flex flex-column text-center">
+                            <h5 class="card-title fw-semibold" th:text="${battery.name}">Battery Name</h5>
+                            <p class="card-text text-muted flex-grow-1" th:text="${battery.description}">
+                                Battery description…
+                            </p>
+
+                            <!-- Availability badge at bottom center -->
+                            <h5 class="availability-badge mt-3">
+                            <span class="badge bg-success px-3 py-2 my-1 fs-6">
+                                <i class="bi bi-stack me-1"></i>
+                                <span th:text="${battery.quantity}">0</span> left
+                            </span>
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+</html>
