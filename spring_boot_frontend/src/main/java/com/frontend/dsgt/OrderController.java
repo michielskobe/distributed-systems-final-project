@@ -273,7 +273,7 @@ public class OrderController {
     }
 
     // ——————————————————————————————————————————————
-    // Cancel Button: Clears everything, then sends back to step 1
+    // Cancel Button: Clears everything, then sends back to home page
     @PostMapping("/order/cancel")
     public String cancelOrder(SessionStatus status) {
         status.setComplete();
