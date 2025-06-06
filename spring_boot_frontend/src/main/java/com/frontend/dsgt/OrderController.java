@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Controller
-@SessionAttributes({"order", "bicycles", "ledstrips", "batteries", "fetchError"})
+@SessionAttributes({"order", "bicycles", "ledstrips", "batteries", "fetchBikeError", "fetchLedError", "fetchBatError"})
 public class OrderController {
 
     private final ProductAggregationService productService;
@@ -41,24 +41,56 @@ public class OrderController {
      */
     @ModelAttribute
     public void fetchProductsIfNeeded(Model model) {
-        Boolean fetchError = (Boolean) model.getAttribute("fetchError");
+        Boolean fetchBikeError = (Boolean) model.getAttribute("fetchBikeError");
+        Boolean fetchLedError = (Boolean) model.getAttribute("fetchLedError");
+        Boolean fetchBatError = (Boolean) model.getAttribute("fetchBatError");
         List<Product> bikes  = (List<Product>) model.getAttribute("bicycles");
         List<Product> leds   = (List<Product>) model.getAttribute("ledstrips");
         List<Product> bats   = (List<Product>) model.getAttribute("batteries");
 
         // If no lists in session yet OR last time there was an error, try fetching:
-        if (fetchError == null || Boolean.TRUE.equals(fetchError) || bikes == null) {
+        if (fetchBikeError == null || Boolean.TRUE.equals(fetchBikeError) || bikes == null || bikes.size() == 0) {
             try {
                 List<Product> fetchedBikes  = productService.fetchProductCategory("bicycles");
-                List<Product> fetchedLeds   = productService.fetchProductCategory("ledstrips");
-                List<Product> fetchedBats   = productService.fetchProductCategory("batteries");
-
                 model.addAttribute("bicycles", fetchedBikes);
-                model.addAttribute("ledstrips", fetchedLeds);
-                model.addAttribute("batteries", fetchedBats);
-                model.addAttribute("fetchError", false);
+                if (fetchedBikes.size() > 0) {
+                    model.addAttribute("fetchBikeError", false);
+                }
+                else {
+                    model.addAttribute("fetchBikeError", true);
+                }
             } catch (Exception e) {
-                model.addAttribute("fetchError", true);
+                model.addAttribute("fetchBikeError", true);
+            }
+        }
+
+        if (fetchLedError == null || Boolean.TRUE.equals(fetchLedError) || leds == null || leds.size() == 0) {
+            try {
+                List<Product> fetchedLeds   = productService.fetchProductCategory("ledstrips");
+                model.addAttribute("ledstrips", fetchedLeds);
+                if (fetchedLeds.size() > 0) {
+                    model.addAttribute("fetchLedError", false);
+                }
+                else {
+                    model.addAttribute("fetchLedError", true);
+                }
+            } catch (Exception e) {
+                model.addAttribute("fetchLedError", true);
+            }
+        }
+
+        if (fetchBatError == null || Boolean.TRUE.equals(fetchBatError) || bats == null || bats.size() == 0) {
+            try {
+                List<Product> fetchedBats   = productService.fetchProductCategory("batteries");
+                model.addAttribute("batteries", fetchedBats);
+                if (fetchedBats.size() > 0) {
+                    model.addAttribute("fetchBatError", false);
+                }
+                else {
+                    model.addAttribute("fetchBatError", true);
+                }
+            } catch (Exception e) {
+                model.addAttribute("fetchBatError", true);
             }
         }
     }

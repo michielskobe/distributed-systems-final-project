@@ -55,7 +55,7 @@
             </div>
         </div>
 
-        <div th:if="${fetchError}" class="alert alert-warning text-center mb-4">
+        <div th:if="${fetchBatError}" class="alert alert-warning text-center mb-4">
             Batteries are temporarily unavailable.
             <a th:href="@{/order/battery}" class="alert-link">Retry</a>
         </div>

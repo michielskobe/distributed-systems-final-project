@@ -56,7 +56,7 @@
         </div>
 
         <!-- If fetching failed, show retry -->
-        <div th:if="${fetchError}" class="alert alert-warning text-center mb-4">
+        <div th:if="${fetchBikeError}" class="alert alert-warning text-center mb-4">
             Bicycles are temporarily unavailable.
             <a th:href="@{/order/bicycle}" class="alert-link">Retry</a>
         </div>
