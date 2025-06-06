@@ -1,8 +1,6 @@
 package com.frontend.dsgt;
 
 import com.frontend.dsgt.service.ProductAggregationService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,17 +15,12 @@ public class ProductController {
     }
 
     @GetMapping("/products")
-    public String showProducts(Model model, @AuthenticationPrincipal OidcUser user) {
-        if (user != null) {
-            model.addAttribute("profile", user.getClaims());
-        }
-
+    public String showProducts(Model model) {
         model.addAttribute("bicycles", productService.fetchProductCategory("bicycles"));
         model.addAttribute("ledstrips", productService.fetchProductCategory("ledstrips"));
         model.addAttribute("batteries", productService.fetchProductCategory("batteries"));
 
         model.addAttribute("pageTitle", "Products");
-        model.addAttribute("shopName", "The Biker Boys");
 
         return "products";
     }

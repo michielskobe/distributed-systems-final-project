@@ -27,7 +27,6 @@ public class ProfileController {
     @GetMapping("/profile")
     public String profile(Model model, @AuthenticationPrincipal OidcUser oidcUser) {
         Map<String, Object> claims = oidcUser.getClaims();
-        model.addAttribute("profile", claims);
         model.addAttribute("profileJson", claimsToJson(claims));
 
         // Compute a nicely formatted "Last Updated" string
@@ -35,7 +34,6 @@ public class ProfileController {
         model.addAttribute("formattedUpdatedAt", formattedUpdated);
 
         model.addAttribute("pageTitle", "Profile");
-        model.addAttribute("shopName", "The Biker Boys");
         return "profile";
     }
 

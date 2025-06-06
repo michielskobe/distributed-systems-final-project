@@ -100,12 +100,9 @@ public class OrderController {
     @GetMapping("/order/bicycle")
     public String chooseBike(
             @ModelAttribute("order") Order order,
-            Model model,
-            @AuthenticationPrincipal OidcUser user
+            Model model
     ) {
-        model.addAttribute("profile", user.getClaims());
         model.addAttribute("pageTitle", "Order - Bicycle");
-        model.addAttribute("shopName", "The Biker Boys");
 
         // For the template:
         model.addAttribute("step", 1);
@@ -151,12 +148,9 @@ public class OrderController {
     @GetMapping("/order/led")
     public String chooseLed(
             @ModelAttribute("order") Order order,
-            Model model,
-            @AuthenticationPrincipal OidcUser user
+            Model model
     ) {
-        model.addAttribute("profile", user.getClaims());
         model.addAttribute("pageTitle", "Order - LED Strip");
-        model.addAttribute("shopName", "The Biker Boys");
 
         model.addAttribute("step", 2);
         model.addAttribute("stepLabel", "Select Your LED Strip");
@@ -198,12 +192,9 @@ public class OrderController {
     @GetMapping("/order/battery")
     public String chooseBattery(
             @ModelAttribute("order") Order order,
-            Model model,
-            @AuthenticationPrincipal OidcUser user
+            Model model
     ) {
-        model.addAttribute("profile", user.getClaims());
         model.addAttribute("pageTitle", "Order - Battery");
-        model.addAttribute("shopName", "The Biker Boys");
 
         model.addAttribute("step", 3);
         model.addAttribute("stepLabel", "Select Your Battery");
@@ -242,17 +233,9 @@ public class OrderController {
     @GetMapping("/order/summary")
     public String summary(
             @ModelAttribute("order") Order order,
-            Model model,
-            @AuthenticationPrincipal OidcUser user
+            Model model
     ) {
-        model.addAttribute("profile", user.getClaims());
         model.addAttribute("pageTitle", "Order - Summary");
-        model.addAttribute("shopName", "The Biker Boys");
-
-        // If somehow they reach summary with no selections, bounce them to first step
-        //if (!order.hasAnySelection()) {
-        //    return "redirect:/order/bicycle";
-        //}
         return "order/summary";
     }
 
@@ -291,10 +274,7 @@ public class OrderController {
         String userEmail = user.getClaims().get("email").toString();
         List<Order> myOrders = null; //orderService.findByUser(userEmail);
 
-        model.addAttribute("profile", user.getClaims());
-
         model.addAttribute("pageTitle", "My Orders");
-        model.addAttribute("shopName", "The Biker Boys");
         model.addAttribute("orders", myOrders);
         return "orders";
     }
@@ -304,13 +284,10 @@ public class OrderController {
      */
     @GetMapping("/admin/orders")
     @PreAuthorize("hasAuthority('Manager')")
-    public String allOrders(Model model, @AuthenticationPrincipal OidcUser user) {
+    public String allOrders(Model model) {
         List<Order> allOrders = null; //orderService.findAll();
 
-        model.addAttribute("profile", user.getClaims());
-
         model.addAttribute("pageTitle", "All Orders");
-        model.addAttribute("shopName", "The Biker Boys");
         model.addAttribute("orders", allOrders);
         return "admin-orders";
     }

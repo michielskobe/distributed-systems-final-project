@@ -15,12 +15,7 @@ public class HomeController {
 	//var authorities = authentication.getAuthorities().stream()
 	//        .map(GrantedAuthority::getAuthority).collect(Collectors.toSet());
 
-		if (user != null) {
-			model.addAttribute("profile", user.getClaims());
-		}
-
 		model.addAttribute("pageTitle", "Home");
-		model.addAttribute("shopName", "The Biker Boys");
 	return "index";
 	}
 

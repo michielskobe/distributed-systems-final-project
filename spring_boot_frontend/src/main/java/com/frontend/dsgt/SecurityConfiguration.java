@@ -26,15 +26,15 @@ public class SecurityConfiguration {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(authorize -> authorize
-                    .requestMatchers("/admin/**").hasAuthority("Manager")
+                    //.requestMatchers("/admin/**").hasAuthority("Manager")
                     .requestMatchers("/favicon.ico").permitAll()
                     .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                     .requestMatchers("/", "/products").permitAll()
                     .anyRequest().authenticated()
             )
-            .exceptionHandling(exceptions -> exceptions
-            .accessDeniedPage("/error/access-denied")
-            )
+            //.exceptionHandling(exceptions -> exceptions
+            //.accessDeniedPage("/error/access-denied")
+            //)
                 .oauth2Login(withDefaults())
             //.oauth2ResourceServer(jwt -> jwt.jwt(withDefaults()))
             .logout(logout -> logout
