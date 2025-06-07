@@ -95,6 +95,15 @@
 			\end{figure}
 		
 	\section{Load testing}
+
+
+	\section{Cost overview}
+	
+		\subsection{Suppliers}
+			The supplier infrastructure supporting the web-shop is designed with cost-efficiency in mind, particularly during the initial phases of operation. This infrastructure relies on three virtual machines (VMs) hosted on Microsoft Azure, along with a MySQL database, all of which initially operate within Azure's free tier offerings.\\
+			Each of the three VMs benefits from Azure’s free tier, which provides up to 750 compute hours per month. This allocation is sufficient to run one VM continuously or distribute usage across multiple VMs with careful scheduling. Once the 750-hour limit is exceeded in any given billing cycle, the VMs automatically transition to Azure’s lowest-cost paid tier. This tier continues to offer basic compute capabilities at a minimal cost, ensuring that the infrastructure remains economically sustainable even under moderate usage.\\
+			Similarly, the MySQL database is provisioned under Azure’s free tier for managed databases. It remains free until it exceeds the usage limits defined by the 750-hour threshold. Upon reaching this limit, the database instance shifts to the lowest available pricing tier, maintaining essential functionality while controlling costs.\\
+			By leveraging Azure’s free tier and its seamless transition to cost-effective paid options, the supplier infrastructure is able to support operational demands with minimal upfront expenditure. This approach allows for scalability and consistent performance while keeping cloud resource costs predictable and manageable as usage grows.
 	
 \newpage
   \section{Extra information}
