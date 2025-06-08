@@ -100,11 +100,9 @@ public class BackgroundWorker {
                         // It's terminal, delete message
                         queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
                         System.out.printf("Order %s failed. Message deleted from queue.\n", orderId);
-                    } else if (status.equals("PROCESSING")) {
+                    } else {
                         // Do not delete — allow retry
                         System.out.printf("Order %s is still pending. Will retry.\n", orderId);
-                    } else {
-                        System.out.printf("Order %s is in unexpected status: %s. Will retry.\n", orderId, status);
                     }
                 }
             } catch (Exception ex) {
@@ -113,73 +111,95 @@ public class BackgroundWorker {
         }
     }
 
-    /**
-     * Process orders with suppliers via REST.
-     * 1. For each supplier, get the product id and amount from DB columns.
-     * 2. Generate a UUID for reservation_id.
-     * 3. Build a JSON payload: {"reservation_details":[{"id":"X", "amount":"Y"}], "reservation_id":"uuid"}
-     * 4. Send to /reserve endpoint.
-     */
     private boolean processOrder(String message) {
+        String orderId = null;
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
-            String orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
+            orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
 
-            if (orderId == null) {
-                System.err.println("Error: No orderId found in message: " + message);
-                return false;
-            }
-
-            if (!orderIdExistsInDatabase(orderId)) {
-                System.err.println("Error: OrderId does not exist in database: " + orderId);
-                return false;
+            if (orderId == null || !orderIdExistsInDatabase(orderId)) {
+                System.err.println("Invalid message or orderId not found, cannot process.");
+                return true; // Return true to remove the message from the queue, without retrying
             }
 
             String orderStatus = getOrderStatus(orderId);
+            String reservationId = getReservationId(orderId);
+            List<String> supplierEndpoints = getSupplierEndpoints();
 
             switch (orderStatus) {
+                case "NEW":
+                    System.out.printf("Order %s is NEW. Starting transaction.\n", orderId);
+                    String newReservationId = UUID.randomUUID().toString();
+                    updateReservationId(orderId, newReservationId);
+
+                    updateOrderStatus(orderId, "RESERVING");
+                    boolean reserved = reserveFromAllSuppliers(orderId, newReservationId, supplierEndpoints);
+                    if (reserved) {
+                        updateOrderStatus(orderId, "RESERVED");
+                        return commitOrder(orderId, newReservationId, supplierEndpoints);
+                    } else {
+                        rollbackAll(supplierEndpoints, newReservationId);
+                        updateOrderStatus(orderId, "FAILED");
+                        return false;
+                    }
+
+                case "RESERVED":
+                    System.out.printf("Order %s is already RESERVED. Resuming by committing.\n", orderId);
+                    if (reservationId == null) {
+                        System.err.printf("Error: Order %s is RESERVED but has no reservationId.\n", orderId);
+                        updateOrderStatus(orderId, "FAILED");
+                        return false;
+                    }
+                    return commitOrder(orderId, reservationId, supplierEndpoints);
+
+                case "COMMITTING":
+                    System.out.printf("Order %s was COMMITTING. Retrying commit process.\n", orderId);
+                    if (reservationId == null) {
+                        System.err.printf("Error: Order %s is COMMITTING but has no reservationId.\n", orderId);
+                        updateOrderStatus(orderId, "FAILED");
+                        return false;
+                    }
+                    // TODO: more robust, check per supplier if commit is already done
+                    return commitOrder(orderId, reservationId, supplierEndpoints);
+
                 case "COMPLETED":
-                    System.err.println("Error: Order "+orderId+" already processed");
-                    return false;
+                    System.out.printf("Order %s is already COMPLETED. Deleting message.\n", orderId);
+                    return true;
+
                 case "FAILED":
-                    System.err.println("Error: Order "+orderId+" already failed, stop trying man");
-            }
+                    System.out.printf("Order %s has already FAILED. Deleting message.\n", orderId);
+                    return false;
 
-            updateOrderStatus(orderId, "PROCESSING");
-            String reservationId = UUID.randomUUID().toString();
-            if (reservationId == null) {
-                System.err.println("Error while generating reservation id for order " + orderId);
-                return false;
+                default:
+                    System.err.printf("Order %s has an UNKNOWN status: %s. Marking as FAILED.\n", orderId, orderStatus);
+                    updateOrderStatus(orderId, "FAILED");
+                    return false;
             }
-            updateReservationId(orderId, reservationId);
-
-            List<String> supplierEndpoints = getSupplierEndpoints();
-            updateOrderStatus(orderId, "RESERVING");
-            boolean successfullyReserved = reserveFromAllSuppliers(orderId, reservationId, supplierEndpoints);
-            if (!successfullyReserved) {
-                rollbackAll(supplierEndpoints, reservationId);
-                updateOrderStatus(orderId, "FAILED");
-                return false;
-            }
-            updateOrderStatus(orderId, "RESERVED");
-            updateOrderStatus(orderId, "COMMITTING");
-            boolean successfullyCommitted = commitAllSuppliers(supplierEndpoints, reservationId);
-            if (!successfullyCommitted) {
-                rollbackAll(supplierEndpoints, reservationId);
-                updateOrderStatus(orderId, "FAILED");
-                return false;
-            }
-
-            updateOrderStatus(orderId, "COMPLETED");
-            return true;
 
         } catch (Exception ex) {
             ex.printStackTrace();
+            if (orderId != null) {
+                updateOrderStatus(orderId, "FAILED");
+            }
             return false;
         }
     }
 
-    // === Helper-methods for distributed commit ===
+    // === Helper-method to commit on every supplier ===
+    private boolean commitOrder(String orderId, String reservationId, List<String> supplierEndpoints) {
+        updateOrderStatus(orderId, "COMMITTING");
+        boolean committed = commitAllSuppliers(supplierEndpoints, reservationId);
+        if (committed) {
+            updateOrderStatus(orderId, "COMPLETED");
+            return true;
+        } else {
+            rollbackAll(supplierEndpoints, reservationId);
+            updateOrderStatus(orderId, "FAILED");
+            return false;
+        }
+    }
+
+    // === Helper-method to reserve from all suppliers ===
     private boolean reserveFromAllSuppliers(String orderId, String reservationId, List<String> supplierEndpoints) {
         try {
             int supplierNumber = 1;
@@ -401,14 +421,30 @@ public class BackgroundWorker {
         String sql = "SELECT status FROM orders WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(SQL_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, orderId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("status");
+                stmt.setString(1, orderId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getString("status");
+                    }
                 }
-            }
         } catch (SQLException e) {
             System.err.println("Error reading order status: " + e.getMessage());
+        }
+        return "UNKNOWN";
+    }
+
+    private String getReservationId(String orderId) {
+        String sql = "SELECT reservation_id FROM orders WHERE id = ?";
+        try (Connection conn = DriverManager.getConnection(SQL_URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, orderId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getString("reservation_id");
+                    }
+                }
+        } catch (SQLException e) {
+            System.err.println("Error reading order reservation id: " + e.getMessage());
         }
         return "UNKNOWN";
     }
