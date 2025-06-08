@@ -35,7 +35,7 @@ public class ReservationStatusController {
     private int mapStatusToCode(String status) {
         switch (status) {
             case "NEW":
-            case "PENDING":
+            case "PROCESSING":
                 return 0; // No decision yet
             case "COMPLETED":
                 return 1; // Commited

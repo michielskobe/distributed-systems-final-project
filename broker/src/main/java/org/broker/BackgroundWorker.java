@@ -100,7 +100,7 @@ public class BackgroundWorker {
                         // It's terminal, delete message
                         queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
                         System.out.printf("Order %s failed. Message deleted from queue.\n", orderId);
-                    } else if (status.equals("PENDING")) {
+                    } else if (status.equals("PROCESSING")) {
                         // Do not delete — allow retry
                         System.out.printf("Order %s is still pending. Will retry.\n", orderId);
                     } else {
@@ -135,10 +135,16 @@ public class BackgroundWorker {
                 return false;
             }
 
-            if (getOrderStatus(orderId).equals("COMPLETED")) {
-                System.err.println("Order already completed: " + orderId);
-                return true;
+            String orderStatus = getOrderStatus(orderId);
+
+            switch (orderStatus) {
+                case "COMPLETED":
+                    System.err.println("Error: Order "+orderId+" already processed");
+                    return false;
+                case "FAILED":
+                    System.err.println("Error: Order "+orderId+" already failed, stop trying man");
             }
+
             updateOrderStatus(orderId, "PROCESSING");
             String reservationId = UUID.randomUUID().toString();
             if (reservationId == null) {
@@ -323,6 +329,7 @@ public class BackgroundWorker {
             String payloadStr = objectMapper.writeValueAsString(payload);
             SupplierResponse response = rollbackSupplier(supplierUrl, payloadStr);
             if (!response.ok) {
+                // TODO: keep the message in some queue because the suppliers need to rollback, even if the network fails!
                 System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
             }
         } catch (Exception e) {
