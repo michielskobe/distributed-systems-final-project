@@ -130,24 +130,27 @@ public class BackgroundWorker {
             }
 
             if (getOrderStatus(orderId).equals("COMPLETED")) {
-                System.out.println("Order already completed: " + orderId);
+                System.err.println("Order already completed: " + orderId);
                 return true;
             }
-
-            updateOrderStatus(orderId, "PENDING");
+            updateOrderStatus(orderId, "PROCESSING");
             String reservationId = UUID.randomUUID().toString();
-            if (reservationId == null) return false;
+            if (reservationId == null) {
+                System.err.println("Error while generating reservation id for order " + orderId);
+                return false;
+            }
             updateReservationId(orderId, reservationId);
 
             List<String> supplierEndpoints = getSupplierEndpoints();
-
+            updateOrderStatus(orderId, "RESERVING");
             boolean successfullyReserved = reserveFromAllSuppliers(orderId, reservationId, supplierEndpoints);
             if (!successfullyReserved) {
                 rollbackAll(supplierEndpoints, reservationId);
                 updateOrderStatus(orderId, "FAILED");
                 return false;
             }
-
+            updateOrderStatus(orderId, "RESERVED");
+            updateOrderStatus(orderId, "COMMITTING");
             boolean successfullyCommitted = commitAllSuppliers(supplierEndpoints, reservationId);
             if (!successfullyCommitted) {
                 rollbackAll(supplierEndpoints, reservationId);
