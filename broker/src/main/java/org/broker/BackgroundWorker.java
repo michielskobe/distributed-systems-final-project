@@ -66,7 +66,13 @@ public class BackgroundWorker {
             try {
                 Iterable<QueueMessageItem> messages = queueClient.receiveMessages(10);
                 for (QueueMessageItem receivedMessage : messages) {
-                    workers.submit(() -> processAndDelete(receivedMessage));
+                    // Ensure that messages can only be retrieved from the queue 3 times again
+                    if(receivedMessage.getDequeueCount() < 4) {
+                        workers.submit(() -> processAndDelete(receivedMessage));
+                    } else {
+                        System.err.println("Message "+receivedMessage.getMessageId()+" already received 3 times from the queue, deleting...");
+                        queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
+                    }
                 }
             } catch (Exception ex) {
                 System.err.println("Error polling queue: " + ex.getMessage());
@@ -82,7 +88,7 @@ public class BackgroundWorker {
         boolean success = processOrder(messageBody);
         if (success) {
             queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
-            System.out.println("Message deleted: " + messageBody);
+            System.out.println("Message processed and deleted from queue: " + messageBody);
         } else {
             try {
                 JsonNode jsonNode = objectMapper.readTree(messageBody);
