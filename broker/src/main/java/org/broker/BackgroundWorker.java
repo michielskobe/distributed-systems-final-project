@@ -14,7 +14,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
+@Component
 public class BackgroundWorker {
 
     // Storage Queue configuration
@@ -28,16 +32,9 @@ public class BackgroundWorker {
     // Supplier config
     private static final String SUPPLIER_API_KEY = "fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
 
-    // Threading config
-    private static final int THREAD_POOL_SIZE = 8;
-    private static final int POLLING_INTERVAL_MS = 1000;
-
     private final QueueClient queueClient;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-
-    private final ScheduledExecutorService poller;
-    private final ExecutorService workers;
 
     public BackgroundWorker() {
         // Initialize Azure Storage Queue
@@ -51,36 +48,27 @@ public class BackgroundWorker {
         // Initialize broker's HttpClient and ObjectMapper
         this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
-
-        // Create thread pool
-        this.workers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-
-        // Poller which periodically checks for messages
-        this.poller = Executors.newSingleThreadScheduledExecutor();
     }
 
-    public void start() {
-        System.out.println("Starting background worker for queue: " + QUEUE_NAME);
-
-        poller.scheduleAtFixedRate(() -> {
-            try {
-                Iterable<QueueMessageItem> messages = queueClient.receiveMessages(10);
-                for (QueueMessageItem receivedMessage : messages) {
-                    // Ensure that messages can only be retrieved from the queue 3 times again
-                    if(receivedMessage.getDequeueCount() < 4) {
-                        workers.submit(() -> processAndDelete(receivedMessage));
-                    } else {
-                        System.err.println("Message "+receivedMessage.getMessageId()+" already received 3 times from the queue, deleting...");
-                        queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
-                    }
+    @Scheduled(fixedRate = 1000)
+    public void pollQueue() {
+        try {
+            Iterable<QueueMessageItem> messages = queueClient.receiveMessages(8);
+            for (QueueMessageItem receivedMessage : messages) {
+                // Ensure that messages can only be retrieved from the queue 3 times again
+                if (receivedMessage.getDequeueCount() < 4) {
+                    processAndDelete(receivedMessage);
+                } else {
+                    System.err.println("Message " + receivedMessage.getMessageId() + " already received 3 times from the queue, deleting...");
+                    queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
                 }
-            } catch (Exception ex) {
-                System.err.println("Error polling queue: " + ex.getMessage());
             }
-        }, 0, POLLING_INTERVAL_MS, TimeUnit.MILLISECONDS);
-
+        } catch (Exception ex) {
+                System.err.println("Error polling queue: " + ex.getMessage());
+        }
     }
 
+    @Async("asyncTaskExecutor")
     private void processAndDelete(QueueMessageItem receivedMessage) {
         String messageBody = receivedMessage.getBody().toString();
         System.out.println("Processing message: " + messageBody);
@@ -234,7 +222,7 @@ public class BackgroundWorker {
         List<String> callbackUrls = new ArrayList<>();
 
         for (String endpoint : supplierEndpoints) {
-            if (!endpoint.equals(supplierUrl)){
+            if (!endpoint.equals(supplierUrl)) {
                 String callback = endpoint + "/transaction_check";
                 callbackUrls.add(callback);
             }
@@ -313,7 +301,8 @@ public class BackgroundWorker {
     }
 
     // === Helper-class for order item info ===
-    private record OrderItem(String productId, int amount) {}
+    private record OrderItem(String productId, int amount) {
+    }
 
     // === Helper-class for order info per supplier ===
     private static class SupplierOrder {
@@ -376,9 +365,11 @@ public class BackgroundWorker {
     private SupplierResponse reserveWithSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/reserve", orderPayload);
     }
+
     private SupplierResponse commitSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/commit", orderPayload);
     }
+
     private SupplierResponse rollbackSupplier(String supplierUrl, String orderPayload) {
         return postToSupplier(supplierUrl + "/rollback_reserve", orderPayload);
     }
@@ -428,12 +419,12 @@ public class BackgroundWorker {
         String sql = "SELECT status FROM orders WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(SQL_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, orderId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getString("status");
-                    }
+            stmt.setString(1, orderId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
                 }
+            }
         } catch (SQLException e) {
             System.err.println("Error reading order status: " + e.getMessage());
         }
@@ -444,12 +435,12 @@ public class BackgroundWorker {
         String sql = "SELECT reservation_id FROM orders WHERE id = ?";
         try (Connection conn = DriverManager.getConnection(SQL_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, orderId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getString("reservation_id");
-                    }
+            stmt.setString(1, orderId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("reservation_id");
                 }
+            }
         } catch (SQLException e) {
             System.err.println("Error reading order reservation id: " + e.getMessage());
         }
@@ -506,9 +497,5 @@ public class BackgroundWorker {
             System.err.println("Error checking orderId in database: " + e.getMessage());
         }
         return false;
-    }
-
-    public static void main(String[] args) {
-        new BackgroundWorker().start();
     }
 }
