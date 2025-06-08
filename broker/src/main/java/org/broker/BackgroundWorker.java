@@ -124,7 +124,13 @@ public class BackgroundWorker {
 
             String orderStatus = getOrderStatus(orderId);
             String reservationId = getReservationId(orderId);
-            List<String> supplierEndpoints = getSupplierEndpoints();
+            Map<Integer, SupplierOrder> supplierOrders = getGroupedOrderInfo(orderId);
+            if (supplierOrders.isEmpty()) {
+                System.err.printf("Order %s has no items to process. Marking as FAILED.\n", orderId);
+                updateOrderStatus(orderId, "FAILED");
+                return false; // No items
+            }
+            List<String> participatingEndpoints = supplierOrders.values().stream().map(so -> so.apiEndpoint).toList();
 
             switch (orderStatus) {
                 case "NEW":
@@ -133,12 +139,12 @@ public class BackgroundWorker {
                     updateReservationId(orderId, newReservationId);
 
                     updateOrderStatus(orderId, "RESERVING");
-                    boolean reserved = reserveFromAllSuppliers(orderId, newReservationId, supplierEndpoints);
+                    boolean reserved = reserveFromAllSuppliers(orderId, newReservationId, supplierOrders);
                     if (reserved) {
                         updateOrderStatus(orderId, "RESERVED");
-                        return commitOrder(orderId, newReservationId, supplierEndpoints);
+                        return commitOrder(orderId, newReservationId, participatingEndpoints);
                     } else {
-                        rollbackAll(supplierEndpoints, newReservationId);
+                        rollbackAll(participatingEndpoints, newReservationId);
                         updateOrderStatus(orderId, "FAILED");
                         return false;
                     }
@@ -150,7 +156,7 @@ public class BackgroundWorker {
                         updateOrderStatus(orderId, "FAILED");
                         return false;
                     }
-                    return commitOrder(orderId, reservationId, supplierEndpoints);
+                    return commitOrder(orderId, reservationId, participatingEndpoints);
 
                 case "COMMITTING":
                     System.out.printf("Order %s was COMMITTING. Retrying commit process.\n", orderId);
@@ -160,7 +166,7 @@ public class BackgroundWorker {
                         return false;
                     }
                     // TODO: more robust, check per supplier if commit is already done
-                    return commitOrder(orderId, reservationId, supplierEndpoints);
+                    return commitOrder(orderId, reservationId, participatingEndpoints);
 
                 case "COMPLETED":
                     System.out.printf("Order %s is already COMPLETED. Deleting message.\n", orderId);
@@ -200,29 +206,22 @@ public class BackgroundWorker {
     }
 
     // === Helper-method to reserve from all suppliers ===
-    private boolean reserveFromAllSuppliers(String orderId, String reservationId, List<String> supplierEndpoints) {
+    private boolean reserveFromAllSuppliers(String orderId, String reservationId, Map<Integer, SupplierOrder> supplierOrders) {
         try {
-            int supplierNumber = 1;
-            for (String supplierUrl : supplierEndpoints) {
-                SupplierProductInfo info = getSupplierProductInfo(orderId, supplierNumber);
-                if (info == null) {
-                    System.err.printf("Aborting transaction %s", reservationId);
-                    System.err.printf("No product info for order %s and supplier %d\n", orderId, supplierNumber);
-                    return false;
-                }
+            List<String> participatingEndpoints = supplierOrders.values().stream().map(so -> so.apiEndpoint).toList();
 
-                List<String> callbackUrls = getSupplierCallbackUrls(supplierUrl, supplierEndpoints);
+            for (SupplierOrder order : supplierOrders.values()) {
+                List<String> callbackUrls = getSupplierCallbackUrls(order.apiEndpoint, participatingEndpoints);
                 callbackUrls.add("http://dapp-final-broker.uksouth.cloudapp.azure.com/transaction_check/" + reservationId);
 
-                String payload = createReservationPayload(info, reservationId, callbackUrls);
-                SupplierResponse response = reserveWithSupplier(supplierUrl, payload);
+                String payload = createReservationPayload(order.items, reservationId, callbackUrls);
+                SupplierResponse response = reserveWithSupplier(order.apiEndpoint, payload);
 
                 if (!response.ok) {
-                    System.err.printf("Aborting transaction %s", reservationId);
-                    System.err.printf("Reserve NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
+                    System.err.printf("Aborting transaction %s. Reserve NOK for supplier %s. Response: %s\n",
+                            reservationId, order.apiEndpoint, response.body);
                     return false;
                 }
-                supplierNumber++;
             }
             return true;
         } catch (Exception ex) {
@@ -243,20 +242,25 @@ public class BackgroundWorker {
         return callbackUrls;
     }
 
-    private String createReservationPayload(SupplierProductInfo info, String reservationId, List<String> callbackUrls) throws JsonProcessingException {
-        ObjectNode detail = objectMapper.createObjectNode();
-        detail.put("id", info.productId);
-        detail.put("amount", String.valueOf(info.amount));
-
+    private String createReservationPayload(List<OrderItem> items, String reservationId, List<String> callbackUrls) throws JsonProcessingException {
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.putArray("reservation_details").add(detail);
+        ArrayNode details = payload.putArray("reservation_details");
+
+        for (OrderItem item : items) {
+            ObjectNode detail = objectMapper.createObjectNode();
+            detail.put("id", item.productId);
+            detail.put("amount", String.valueOf(item.amount));
+            details.add(detail);
+        }
+
         payload.put("reservation_id", reservationId);
 
         ArrayNode callbacks = payload.putArray("callback");
         for (String callbackUrl : callbackUrls) {
             callbacks.add(callbackUrl);
         }
-        System.out.println(objectMapper.writeValueAsString(payload));
+
+        System.out.println("Generated Payload: " + objectMapper.writeValueAsString(payload));
         return objectMapper.writeValueAsString(payload);
     }
 
@@ -295,16 +299,6 @@ public class BackgroundWorker {
         }
     }
 
-    // === Helper-class for product info ===
-    private static class SupplierProductInfo {
-        String productId;
-        int amount;
-        SupplierProductInfo(String productId, int amount) {
-            this.productId = productId;
-            this.amount = amount;
-        }
-    }
-
     // === Helper-class for supplier response ===
     private static class SupplierResponse {
         boolean ok;
@@ -318,26 +312,47 @@ public class BackgroundWorker {
         }
     }
 
-    private SupplierProductInfo getSupplierProductInfo(String orderId, int supplierNumber) {
-        String idCol = "supplier_" + supplierNumber + "_id";
-        String amountCol = "supplier_" + supplierNumber + "_amount";
-        String sql = String.format("SELECT %s, %s FROM orders WHERE id = ?", idCol, amountCol);
+    // === Helper-class for order item info ===
+    private record OrderItem(String productId, int amount) {}
+
+    // === Helper-class for order info per supplier ===
+    private static class SupplierOrder {
+        final String apiEndpoint;
+        final List<OrderItem> items = new ArrayList<>();
+
+        SupplierOrder(String apiEndpoint) {
+            this.apiEndpoint = apiEndpoint;
+        }
+    }
+
+    private Map<Integer, SupplierOrder> getGroupedOrderInfo(String orderId) {
+        Map<Integer, SupplierOrder> supplierOrders = new HashMap<>();
+        String sql = "SELECT oi.product_id, oi.amount, s.id as supplier_id, s.api_endpoint " +
+                "FROM order_items oi " +
+                "JOIN suppliers s ON oi.supplier_id = s.id " +
+                "WHERE oi.order_id = ?";
+
         try (Connection conn = DriverManager.getConnection(SQL_URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, orderId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    String productId = rs.getString(idCol);
-                    int amount = rs.getInt(amountCol);
-                    if (productId != null && !productId.isEmpty() && amount > 0) {
-                        return new SupplierProductInfo(productId, amount);
-                    }
-                }
+
+            stmt.setInt(1, Integer.parseInt(orderId));
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                int supplierId = rs.getInt("supplier_id");
+                String endpoint = rs.getString("api_endpoint");
+
+                supplierOrders.putIfAbsent(supplierId, new SupplierOrder(endpoint));
+
+                supplierOrders.get(supplierId).items.add(
+                        new OrderItem(rs.getString("product_id"), rs.getInt("amount"))
+                );
             }
         } catch (SQLException e) {
-            System.err.println("Error fetching supplier product info: " + e.getMessage());
+            System.err.println("Error fetching grouped order info: " + e.getMessage());
+            return Collections.emptyMap();
         }
-        return null;
+        return supplierOrders;
     }
 
     private void rollbackSupplierWithReservationId(String supplierUrl, String reservationId) {
@@ -407,14 +422,6 @@ public class BackgroundWorker {
             System.err.println("Error contacting supplier: " + url + " - " + ex.getMessage());
             return new SupplierResponse(false, ex.getMessage(), -1);
         }
-    }
-
-    private List<String> getSupplierEndpoints() {
-        return List.of(
-                "https://rgbeast.francecentral.cloudapp.azure.com/RGBeast",
-                "https://crank-wankers.francecentral.cloudapp.azure.com/Crank-Wankers",
-                "https://battery-bastards.francecentral.cloudapp.azure.com/Battery-Bastards"
-        );
     }
 
     private String getOrderStatus(String orderId) {
