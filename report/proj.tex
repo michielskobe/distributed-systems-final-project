@@ -48,10 +48,17 @@
 	\section{Front-end Details}
 	
 	\section{Broker Details}
+		The broker acts as a central orchestrator between the client application and the supplier system. 
+		\subsection{Design}
+		The broker is build as a Spring Boot application that is responsible for coordinating the distributed commit of client reservations across multiple supplier services. At the centre of its design is the Background Worker Java component that continuously polls an Azure Storage Queue every second for new messages. These messages contain ID's for the client-side orders that need to be processed. 
+		
+		To improve scalability and responsiveness, the broker uses a multi-threaded executor that is configured to handle up to 8 concurrent threads. This allows simultaneous processing of multiple reservations if necessary.  These orders are then processed using the distributed commit protocol. The broker first contacts the supplier's PHP endpoints to confirm the availability of the orders and to reserve them. This supplier PHP API will be covered in more detail in section \ref{ch:supplier-design} of this report. If all reservations are successful, the broker proceeds to invoke commit operations on each supplier. During the whole transaction, the status of the order is updated very accurately in an Azure SQL Server database, which can be queried at any time using a REST API endpoint. Only after the transaction is completed successfully, the message is removed from the Queue. 
+		\subsection{Deployment}
+		The broker is deployed as a Spring Boot application running on an Azure VM located in UK South. It communicates with the client side through an Azure Storage Queue that is also hosted on Azure, but located in West-Europe. This provides reliable asynchronous messaging. 
 	
 	\section{Supplier Details}
 		Although the suppliers are an indirect part of the web-store, they do take part in the distributed commit. Because of this, careful thought had to be put in to ensure proper processing of an order. 
-		\subsection{Design}
+		\subsection{Design}\label{ch:supplier-design}
 			A supplier is essentially a PHP API with a number of endpoints useful for retrieving information about products and orders. As well as making a distributed commit of-course. On a high level, the following endpoints are available:
 			\begin{description}
 				\item[list\_products] provides information such as id, name, description, stock and an image url for all products. 
