@@ -105,6 +105,11 @@
 
 
 	\section{Cost overview}
+		\subsection{Broker}
+		The broker consists of a single Azure virtual machine (VM), an Azure SQL Server and an Azure Storage Queue. All of these instances are operating within cost-conscious constraints. \\		
+		The VM on which the Spring Boot broker application is running falls under Azure’s free tier, which offers 750 compute hours per month. If the broker’s usage surpasses this limit, it transitions to Azure’s entry-level paid tier to keep the application running at minimal cost. \\		
+		The broker also uses an Azure SQL Server instance to extract and update the order information. Just like the VM, the database operates under Azure’s free tier. This provides 100 000 so-called vCore seconds of serverless database compute and a maximum size of 32 GB of data per database. In case this free limit is reached, the database can be automatically switched to the standard General Purpose tier serverless rates. This results in an additional fee of \$0.0001812 per used vCore-second. \\		
+		Finally, the broker communicates asynchronously with the client application using an Azure Storage Queue. This service is not covered by the free tier but is still highly cost-effective. Azure charges \$0.004 per 10 000 operations, which results to negligible cost under typical workloads.
 	
 		\subsection{Suppliers}
 			The supplier infrastructure supporting the web-shop is designed with cost-efficiency in mind, particularly during the initial phases of operation. This infrastructure relies on three virtual machines (VMs) hosted on Microsoft Azure, along with a MySQL database, all of which initially operate within Azure's free tier offerings.\\
