@@ -236,7 +236,7 @@ public class BackgroundWorker {
 
         for (OrderItem item : items) {
             ObjectNode detail = objectMapper.createObjectNode();
-            detail.put("id", item.productId);
+            detail.put("id", String.valueOf(item.productId));
             detail.put("amount", String.valueOf(item.amount));
             details.add(detail);
         }
@@ -301,7 +301,7 @@ public class BackgroundWorker {
     }
 
     // === Helper-class for order item info ===
-    private record OrderItem(String productId, int amount) {
+    private record OrderItem(int productId, int amount) {
     }
 
     // === Helper-class for order info per supplier ===
@@ -334,7 +334,7 @@ public class BackgroundWorker {
                 supplierOrders.putIfAbsent(supplierId, new SupplierOrder(endpoint));
 
                 supplierOrders.get(supplierId).items.add(
-                        new OrderItem(rs.getString("product_id"), rs.getInt("amount"))
+                        new OrderItem(rs.getInt("product_id"), rs.getInt("amount"))
                 );
             }
         } catch (SQLException e) {
@@ -353,7 +353,8 @@ public class BackgroundWorker {
             String payloadStr = objectMapper.writeValueAsString(payload);
             SupplierResponse response = rollbackSupplier(supplierUrl, payloadStr);
             if (!response.ok) {
-                // TODO: keep the message in some queue because the suppliers need to rollback, even if the network fails!
+                // If rollback fails, the supplier can contact us via our callback endpoint
+                // An extension would be to add an extra queue for rollback messages to allow retry attempts
                 System.err.printf("Rollback NOK for supplier %s. Response: %s\n", supplierUrl, response.body);
             }
         } catch (Exception e) {
