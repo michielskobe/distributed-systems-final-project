@@ -3,6 +3,7 @@ package com.frontend.dsgt;
 import com.frontend.dsgt.model.Order;
 import com.frontend.dsgt.model.Product;
 import com.frontend.dsgt.service.ProductAggregationService;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -13,6 +14,14 @@ import org.springframework.web.bind.support.SessionStatus;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import com.frontend.dsgt.model.OrderEntity;
+import com.frontend.dsgt.model.OrderItemEntity;
+import com.frontend.dsgt.repository.OrderRepository;
+import com.azure.storage.queue.QueueClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
 import java.util.List;
 import java.util.Map;
 
@@ -21,9 +30,13 @@ import java.util.Map;
 public class OrderController {
 
     private final ProductAggregationService productService;
+    private final OrderRepository orderRepo;
+    private final QueueClient queueClient;
 
-    public OrderController(ProductAggregationService productService) {
+    public OrderController(ProductAggregationService productService, OrderRepository orderRepo, QueueClient queueClient) {
         this.productService = productService;
+        this.orderRepo = orderRepo;
+        this.queueClient = queueClient;
     }
 
     /**
@@ -243,14 +256,56 @@ public class OrderController {
     public String complete(
             @ModelAttribute("order") Order order,
             SessionStatus status,
-            RedirectAttributes redirectAttrs
-    ) {
-        // Add a one‐time flash message
+            RedirectAttributes redirectAttrs,
+            @AuthenticationPrincipal OidcUser user) {
+
+        // 1) Save to DB
+        OrderEntity oe = new OrderEntity();
+        oe.setUserEmail(user.getClaims().get("email").toString());
+
+        // 1) Bicycle (supplier_id = 2)
+        for (Map.Entry<String,Integer> entry : order.getBicycleQuantities().entrySet()) {
+            String prodId = entry.getKey();
+            int qty = entry.getValue();
+            OrderItemEntity item = new OrderItemEntity();
+            item.setSupplierId(2);
+            item.setProductId(prodId);
+            item.setAmount(qty);
+            oe.addItem(item);
+        }
+
+        // 2) LED (supplier_id = 1)
+        for (Map.Entry<String,Integer> entry : order.getLedQuantities().entrySet()) {
+            String prodId = entry.getKey();
+            int qty = entry.getValue();
+            OrderItemEntity item = new OrderItemEntity();
+            item.setSupplierId(1);
+            item.setProductId(prodId);
+            item.setAmount(qty);
+            oe.addItem(item);
+        }
+
+        // 3) Battery (supplier_id = 3)
+        for (Map.Entry<String,Integer> entry : order.getBatteryQuantities().entrySet()) {
+            String prodId = entry.getKey();
+            int qty = entry.getValue();
+            OrderItemEntity item = new OrderItemEntity();
+            item.setSupplierId(3);
+            item.setProductId(prodId);
+            item.setAmount(qty);
+            oe.addItem(item);
+        }
+
+        oe.setStatus("NEW");
+        oe = orderRepo.save(oe);  // persist
+
+        // 2) Push to Azure Queue
+        String msg = String.format("%d", oe.getId());
+        queueClient.createIfNotExists();
+        queueClient.sendMessage(msg);
+
+        // 3) Flash and clear
         redirectAttrs.addFlashAttribute("successMessage", "Your order has been placed successfully!");
-
-        // TODO: Persist order to your database
-
-        // Clear session attributes (order + product lists + fetchError)
         status.setComplete();
         return "redirect:/";
     }
@@ -269,13 +324,11 @@ public class OrderController {
      */
     @GetMapping("/orders")
     @PreAuthorize("isAuthenticated()")
-    public String myOrders(Model model, @AuthenticationPrincipal OidcUser user) {
-        // Assume orderService.findByUser(email) returns List<Order> for that user
-        String userEmail = user.getClaims().get("email").toString();
-        List<Order> myOrders = null; //orderService.findByUser(userEmail);
-
-        model.addAttribute("pageTitle", "My Orders");
-        model.addAttribute("orders", myOrders);
+    public String myOrders(Model model, @AuthenticationPrincipal OidcUser user,
+                           @RequestParam(defaultValue = "0") int page) {
+        String email = user.getClaims().get("email").toString();
+        Page<OrderEntity> pg = orderRepo.findByUserEmail(email, PageRequest.of(page, 18, Sort.by("createdAt").descending()));
+        model.addAttribute("ordersPage", pg);
         return "orders";
     }
 
@@ -284,11 +337,10 @@ public class OrderController {
      */
     @GetMapping("/admin/orders")
     @PreAuthorize("hasAuthority('Manager')")
-    public String allOrders(Model model) {
-        List<Order> allOrders = null; //orderService.findAll();
-
-        model.addAttribute("pageTitle", "All Orders");
-        model.addAttribute("orders", allOrders);
+    public String allOrders(Model model,
+                            @RequestParam(defaultValue = "0") int page) {
+        Page<OrderEntity> pg = orderRepo.findAll(PageRequest.of(page, 18, Sort.by("createdAt").descending()));
+        model.addAttribute("ordersPage", pg);
         return "admin-orders";
     }
 }
