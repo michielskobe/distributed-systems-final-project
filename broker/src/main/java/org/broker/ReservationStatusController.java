@@ -33,17 +33,12 @@ public class ReservationStatusController {
     }
 
     private int mapStatusToCode(String status) {
-        switch (status) {
-            case "NEW":
-            case "PROCESSING":
-                return 0; // No decision yet
-            case "COMPLETED":
-                return 1; // Commited
-            case "FAILED":
-                return 4; // RESERVATION aborted/rolled back
-            default:
-                return 0;
-        }
+        return switch (status) {
+            case "NEW", "PROCESSING" -> 0; // No decision yet
+            case "COMPLETED" -> 1; // Commited
+            case "FAILED" -> 4; // RESERVATION aborted/rolled back
+            default -> 0;
+        };
     }
 
     public static class StatusResponse {
