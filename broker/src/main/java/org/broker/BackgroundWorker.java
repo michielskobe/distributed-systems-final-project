@@ -70,18 +70,15 @@ public class BackgroundWorker {
 
     @Async("asyncTaskExecutor")
     private void processAndDelete(QueueMessageItem receivedMessage) {
-        String messageBody = receivedMessage.getBody().toString();
-        System.out.println("Processing message: " + messageBody);
+        String orderId = receivedMessage.getBody().toString();
+        System.out.println("Processing message: " + orderId);
 
-        boolean success = processOrder(messageBody);
+        boolean success = processOrder(orderId);
         if (success) {
             queueClient.deleteMessage(receivedMessage.getMessageId(), receivedMessage.getPopReceipt());
-            System.out.println("Message processed and deleted from queue: " + messageBody);
+            System.out.println("Message processed and deleted from queue: " + orderId);
         } else {
             try {
-                JsonNode jsonNode = objectMapper.readTree(messageBody);
-                String orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
-
                 if (orderId != null) {
                     String status = getOrderStatus(orderId);
                     if (status.equals("FAILED")) {
@@ -99,12 +96,8 @@ public class BackgroundWorker {
         }
     }
 
-    private boolean processOrder(String message) {
-        String orderId = null;
+    private boolean processOrder(String orderId) {
         try {
-            JsonNode jsonNode = objectMapper.readTree(message);
-            orderId = jsonNode.has("orderId") ? jsonNode.get("orderId").asText() : null;
-
             if (orderId == null || !orderIdExistsInDatabase(orderId)) {
                 System.err.println("Invalid message or orderId not found, cannot process.");
                 return true; // Return true to remove the message from the queue, without retrying
