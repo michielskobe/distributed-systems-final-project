@@ -18,10 +18,10 @@ public class AzureConfig {
 
     @Bean
     public QueueClient queueClient() {
+        String connectStr = System.getenv("AZURE_STORAGE_CONNECTION_STRING");
         return new QueueClientBuilder()
-                .endpoint(queueEndpoint)
+                .connectionString(connectStr)
                 .queueName(queueName)
-                .credential(new DefaultAzureCredentialBuilder().build())
                 .buildClient();
     }
 }
