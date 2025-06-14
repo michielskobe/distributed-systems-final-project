@@ -33,7 +33,7 @@ public class BrokerTest {
 
         for (int i = 1; i <= 1000; i++) {
             queueClient.sendMessage(String.valueOf(i));
-            System.out.println("Inserted order ID" + i + "to Azure Storage Queue");
+            System.out.println("Inserted order ID " + i + " to Azure Storage Queue");
         }
     }
 
