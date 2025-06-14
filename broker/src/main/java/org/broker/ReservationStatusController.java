@@ -7,7 +7,8 @@ import java.sql.*;
 @RequestMapping("/transaction_check")
 public class ReservationStatusController {
 
-    private static final String SQL_URL = "jdbc:mysql://dapp-broker-db.mysql.database.azure.com:3306/dapp-final-db?user=dapp&password=Nalu123456789!&useSSL=true&verifyServerCertificate=false";
+    private static final String SQL_URL = "jdbc:sqlserver://dsgt.database.windows.net:1433;database=dsgt;user=database@dsgt;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";
+
     @GetMapping("/{reservationId}")
     public StatusResponse getReservationStatus(@PathVariable String reservationId) {
         String status = getOrderStatus(reservationId);

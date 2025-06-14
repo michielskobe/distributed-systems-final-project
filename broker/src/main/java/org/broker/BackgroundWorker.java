@@ -27,7 +27,7 @@ public class BackgroundWorker {
     private static final String QUEUE_ENDPOINT = "https://storageaccountdapp.queue.core.windows.net/";
 
     // Azure SQL DB configuration
-    private static final String SQL_URL = "jdbc:mysql://dapp-broker-db.mysql.database.azure.com:3306/dapp-final-db?user=dapp&password=Nalu123456789!&useSSL=true&verifyServerCertificate=false";
+    private static final String SQL_URL = "jdbc:sqlserver://dsgt.database.windows.net:1433;database=dsgt;user=database@dsgt;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";
 
     // Supplier config
     private static final String SUPPLIER_API_KEY = "fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
