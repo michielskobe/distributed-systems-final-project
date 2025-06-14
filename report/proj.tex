@@ -50,7 +50,7 @@
 	\section{Broker Details}
 		The broker acts as a central orchestrator between the client application and the supplier system. 
 		\subsection{Design}
-		The broker is build as a Spring Boot application that is responsible for coordinating the distributed commit of client reservations across multiple supplier services. At the centre of its design is the Background Worker Java component that continuously polls an Azure Storage Queue every second for new messages. Every second, a total of 100 messages can be retrieved from the queue which  contain the corresponding ID's of client-side orders in the database that need to be processed.\\
+		The broker is build as a Spring Boot application that is responsible for coordinating the distributed commit of client reservations across multiple supplier services. At the centre of its design is the Background Worker Java component that continuously polls an Azure Storage Queue every second for new messages. Every second, a total of 32 messages can be retrieved from the queue which  contain the corresponding ID's of client-side orders in the database that need to be processed.\\
 		\newline
 		To improve scalability and responsiveness, the Background Worker uses a multi-threaded executor that is configured to handle up to 8 concurrent threads. This allows simultaneous processing of multiple reservations. If necessary, there exists a task queue of up to 100 tasks so that messages retrieved from the queue can be processed right after each other instead of leaving threads waiting for the next message polling.\\
 		\newline
@@ -77,7 +77,7 @@
 		 \end{description}
 		
 		\subsection{Deployment}
-		The broker is deployed as a Spring Boot application running on an Azure VM (1 vCore, 1GB RAM) located in UK South. It communicates with the client side through an Azure Storage Queue that is also hosted on Azure, but located in West-Europe. This provides reliable asynchronous messaging. The database between the broker and the client application is a Microsoft SQL database hosted by Azure in the same administration domain (UK South) as the broker itself.
+		The broker is deployed as a Spring Boot application running on an Azure VM (1 vCore, 1GB RAM) located in UK South. It communicates with the client side through an Azure Storage Queue that is also hosted on Azure, but located in West-Europe. This provides reliable asynchronous messaging. The database between the broker and the client application is a MySQL database hosted by Azure in France Central, but another administration domain than the suppliers. This is due to a location restriction of Flexible MySQL servers by Azure.
 	
 	\section{Supplier Details}
 		Although the suppliers are an indirect part of the web-store, they do take part in the distributed commit. Because of this, careful thought had to be put in to ensure proper processing of an order. 
