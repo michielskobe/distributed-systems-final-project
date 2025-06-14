@@ -27,7 +27,7 @@ public class BackgroundWorker {
     private static final String QUEUE_ENDPOINT = "https://storageaccountdapp.queue.core.windows.net/";
 
     // Azure SQL DB configuration
-    private static final String SQL_URL = "jdbc:sqlserver://dapp-db.database.windows.net:1433;database=dapp-final-db;user=database@dapp-db;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";
+    private static final String SQL_URL = "jdbc:mysql://dapp-broker-db.mysql.database.azure.com:3306/dapp-final-db?user=dapp&password=Nalu123456789!&useSSL=true&verifyServerCertificate=false";
 
     // Supplier config
     private static final String SUPPLIER_API_KEY = "fa3b2c9c-a96d-48a8-82ad-0cb775dd3e5d";
@@ -53,7 +53,7 @@ public class BackgroundWorker {
     @Scheduled(fixedRate = 1000)
     public void pollQueue() {
         try {
-            Iterable<QueueMessageItem> messages = queueClient.receiveMessages(8);
+            Iterable<QueueMessageItem> messages = queueClient.receiveMessages(32);
             for (QueueMessageItem receivedMessage : messages) {
                 // Ensure that messages can only be retrieved from the queue 3 times again
                 if (receivedMessage.getDequeueCount() < 4) {
@@ -146,7 +146,6 @@ public class BackgroundWorker {
                         updateOrderStatus(orderId, "FAILED");
                         return false;
                     }
-                    // TODO: more robust, check per supplier if commit is already done
                     return commitOrder(orderId, reservationId, participatingEndpoints);
 
                 case "COMPLETED":

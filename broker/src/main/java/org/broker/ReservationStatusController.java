@@ -7,8 +7,7 @@ import java.sql.*;
 @RequestMapping("/transaction_check")
 public class ReservationStatusController {
 
-    private static final String SQL_URL = "jdbc:sqlserver://dapp-db.database.windows.net:1433;database=dapp-final-db;user=database@dapp-db;password=Nalu123456789!;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;";
-
+    private static final String SQL_URL = "jdbc:mysql://dapp-broker-db.mysql.database.azure.com:3306/dapp-final-db?user=dapp&password=Nalu123456789!&useSSL=true&verifyServerCertificate=false";
     @GetMapping("/{reservationId}")
     public StatusResponse getReservationStatus(@PathVariable String reservationId) {
         String status = getOrderStatus(reservationId);
@@ -34,10 +33,9 @@ public class ReservationStatusController {
 
     private int mapStatusToCode(String status) {
         return switch (status) {
-            case "NEW", "PROCESSING" -> 0; // No decision yet
             case "COMPLETED" -> 1; // Commited
             case "FAILED" -> 4; // RESERVATION aborted/rolled back
-            default -> 0;
+            default -> 0; // No decision yet
         };
     }
 
