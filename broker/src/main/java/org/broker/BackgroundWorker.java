@@ -53,7 +53,7 @@ public class BackgroundWorker {
     @Scheduled(fixedRate = 1000)
     public void pollQueue() {
         try {
-            Iterable<QueueMessageItem> messages = queueClient.receiveMessages(8);
+            Iterable<QueueMessageItem> messages = queueClient.receiveMessages(100);
             for (QueueMessageItem receivedMessage : messages) {
                 // Ensure that messages can only be retrieved from the queue 3 times again
                 if (receivedMessage.getDequeueCount() < 4) {
@@ -146,7 +146,6 @@ public class BackgroundWorker {
                         updateOrderStatus(orderId, "FAILED");
                         return false;
                     }
-                    // TODO: more robust, check per supplier if commit is already done
                     return commitOrder(orderId, reservationId, participatingEndpoints);
 
                 case "COMPLETED":

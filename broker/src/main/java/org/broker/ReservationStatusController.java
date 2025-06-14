@@ -34,10 +34,9 @@ public class ReservationStatusController {
 
     private int mapStatusToCode(String status) {
         return switch (status) {
-            case "NEW", "PROCESSING" -> 0; // No decision yet
             case "COMPLETED" -> 1; // Commited
             case "FAILED" -> 4; // RESERVATION aborted/rolled back
-            default -> 0;
+            default -> 0; // No decision yet
         };
     }
 
