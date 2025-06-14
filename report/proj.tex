@@ -50,11 +50,34 @@
 	\section{Broker Details}
 		The broker acts as a central orchestrator between the client application and the supplier system. 
 		\subsection{Design}
-		The broker is build as a Spring Boot application that is responsible for coordinating the distributed commit of client reservations across multiple supplier services. At the centre of its design is the Background Worker Java component that continuously polls an Azure Storage Queue every second for new messages. These messages contain ID's for the client-side orders that need to be processed. 
+		The broker is build as a Spring Boot application that is responsible for coordinating the distributed commit of client reservations across multiple supplier services. At the centre of its design is the Background Worker Java component that continuously polls an Azure Storage Queue every second for new messages. Every second, a total of 100 messages can be retrieved from the queue which  contain the corresponding ID's of client-side orders in the database that need to be processed.\\
+		\newline
+		To improve scalability and responsiveness, the Background Worker uses a multi-threaded executor that is configured to handle up to 8 concurrent threads. This allows simultaneous processing of multiple reservations. If necessary, there exists a task queue of up to 100 tasks so that messages retrieved from the queue can be processed right after each other instead of leaving threads waiting for the next message polling.\\
+		\newline
+		The orders are then processed using the distributed commit protocol. First, a UUID (unique reservation ID) is generated that will be used to identify orders in the communication between the broker and the suppliers. The broker then contacts the supplier's PHP endpoints to confirm the availability of the orders and to reserve them. This supplier PHP API will be covered in more detail in section \ref{ch:supplier-design} of this report. If all reservations are successful, the broker proceeds to invoke commit operations on each supplier. During the whole transaction, the status of the order is updated very accurately in the database. The used statuses are:
 		
-		To improve scalability and responsiveness, the broker uses a multi-threaded executor that is configured to handle up to 8 concurrent threads. This allows simultaneous processing of multiple reservations if necessary.  These orders are then processed using the distributed commit protocol. The broker first contacts the supplier's PHP endpoints to confirm the availability of the orders and to reserve them. This supplier PHP API will be covered in more detail in section \ref{ch:supplier-design} of this report. If all reservations are successful, the broker proceeds to invoke commit operations on each supplier. During the whole transaction, the status of the order is updated very accurately in an Azure SQL Server database, which can be queried at any time using a REST API endpoint. Only after the transaction is completed successfully, the message is removed from the Queue. 
+		\begin{description}
+			\item[NEW]: the order is not retrieved yet from the queue by the broker.
+			\item[PROCESSING]: the order is retrieved from the queue, a unique reservation ID is generated and assigned to the order.
+			\item[RESERVING]: the unique reservation ID is successfully generated and stored in the database, starting reserving the order items with the suppliers.
+			\item[RESERVED]: all items have been successfully reserved with the suppliers.
+			\item[COMMITTING]: all items are being committed with the suppliers.
+			\item[COMPLETED]: all items are committed with the suppliers and the order is completed successfully. There is no reverting back from here.
+			\item[FAILED]: fatal failure in the order. This can be due to several reasons, but there is no retry after this and the order failed forever.
+		\end{description}
+		
+		\noindent These detailed statuses have been made to improve the fault tolerance of the broker. If the broker fails somewhere, the message is left in the queue and retrieved again the next time the broker is going to process some messages. The status of the current order is then be retrieved, and if it was already in the middle of something, it will pick up from where it left. It is only when the order failed due to some fatal errors (e.g. incorrect message format, non-existent product in supplier, product not available with a supplier, etc.) that it is immediately removed from the queue because then a retry will lead to the same error. In addition, if a message has been retrieved more than 3 times from the queue, it will also be removed to prevent so-called "poison messages" which wander forever in the queue.\\
+		\newline
+		The order status can be queried by the suppliers at any time if they experience a network failure or for other reasons using a REST API endpoint. They will get the following status codes:
+		 
+		 \begin{description}
+		 	\item[Code 0]: there is no decision yet.
+		 	\item[Code 1]: the order is committed and completed.
+		 	\item[Code 4]: the order failed, the reservation is aborted and a rollback message has been sent.
+		 \end{description}
+		
 		\subsection{Deployment}
-		The broker is deployed as a Spring Boot application running on an Azure VM located in UK South. It communicates with the client side through an Azure Storage Queue that is also hosted on Azure, but located in West-Europe. This provides reliable asynchronous messaging. 
+		The broker is deployed as a Spring Boot application running on an Azure VM (1 vCore, 1GB RAM) located in UK South. It communicates with the client side through an Azure Storage Queue that is also hosted on Azure, but located in West-Europe. This provides reliable asynchronous messaging. The database between the broker and the client application is a Microsoft SQL database hosted by Azure in the same administration domain (UK South) as the broker itself.
 	
 	\section{Supplier Details}
 		Although the suppliers are an indirect part of the web-store, they do take part in the distributed commit. Because of this, careful thought had to be put in to ensure proper processing of an order. 
