@@ -152,6 +152,17 @@
 			\end{figure}
 		
 	\section{Load testing}
+		\subsection{Frond-End}
+			To test the front‑end, we created a `realistic users' load test in JMeter. The test deploys 200 virtual users, ramping them up evenly over two minutes and then maintaining that level for an additional two minutes, automatically stopping after four minutes. During the test, users navigate to various pages of the site, with realistic `think time' of one to three seconds introduced via JMeter’s Uniform Random Timer. Figure\ref{fig:front-end-load} shows the Grafana dashboard for this test. During the two-minute steady state, CPU utilization on the front-end server stabilized at approximately 40\% busy-user time, with occasional small spikes and dips. Memory usage remained stable at around 730MiB used (out of 900MiB total), with only a marginal increase during the initial ramp-up period. Network traffic averaged 5-10Mb/s outbound (trans eth0) as users downloaded page assets, while inbound traffic stayed near zero. Disk usage and swap usage remained flat throughout, indicating negligible I/O pressure or paging. The observed variation in CPU and network utilization reflects differences in page content complexity, some pages demand more processing or data transfer than others, resulting in higher or lower resource consumption depending on which pages the 200 users are accessing.
+			
+			\begin{figure}[h!]
+				\centering
+				\includegraphics[width=0.9\linewidth]{images/front-end-load}
+				\caption{Server load on the front-end}
+				\label{fig:front-end-load}
+			\end{figure}
+			
+	
 		\subsection{Broker}
 			To load test the broker, we added a 1000 orders to the SQL server. Each order consisted of 1 product for every supplier. Next, the Azure Storage Account Queue was instantaneously filled with the order ID`s of these orders. Figure \ref{fig:broker_load} shows the server load of this test. Despite the high number of orders, the server was not greatly affected by this. There was a minimal increase in CPU usage and RAM usage also stayed within limits. This can be explained because, by design, the broker continues to routinely process orders, but the large amount of load is absorbed by the Queue. In addition, the broker is mostly just waiting for responses on the requests to the suppliers and SQL query's. As a result, it takes a while to fully complete all orders, but the broker itself continues to run smoothly during the whole process. After all orders were completed, we could detect a success rate of 100\% when inspecting the order statuses in the database. We also further examined the effect of an increased number of available threads on the duration of the order processing, but this appeared to have no effect.
 			\begin{figure}[h!]
