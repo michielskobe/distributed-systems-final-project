@@ -125,6 +125,14 @@
 			\end{figure}
 		
 	\section{Load testing}
+		\subsection{Broker}
+			To load test the broker, we added a 1000 orders to the SQL server. Each order consisted of 1 product for every supplier. Next, the Azure Storage Account Queue was instantaneously filled with the order ID`s of these orders. Figure \ref{fig:broker_load} shows the server load of this test. Despite the high number of orders, the server was not greatly affected by this. There was a minimal increase in CPU usage and RAM usage also stayed within limits. This can be explained because, by design, the broker continues to routinely process orders, but the large amount of load is absorbed by the Queue. As a result, it takes a while to fully complete all orders, but the broker itself continues to run smoothly during the whole process. After all orders were completed, we could detect a success rate of 100\% when inspecting the order statuses in the database. We also further examined the effect of an increased number of available threads on the duration of the order processing, but this appeared to have no effect.
+			\begin{figure}[h!]
+				\centering
+				\includegraphics[width=0.9\linewidth]{images/broker-load}
+				\caption{Server load on the broker}
+				\label{fig:broker_load}
+			\end{figure}
 		
 		\subsection{Suppliers}
 			To load test suppliers, we made a script which simulates a full distributed transaction across all three suppliers. This script was run in parallel with 150 instances to load the servers properly. In summary, the load on the servers was lower than expected when running the maximal amount of clients it could handle without returning time-out errors. We suspect the bottleneck is the SQL server which has to handle a lot of queries in order to ensure everything goes smoothly, but further research is needed to confirm this. In the end, with some manual testing of different configurations of the tests, we concluded we could perform about 19 distributed commits per minute. During testing of aborted transactions, we did notice a higher throughput of 55 reverts per minute. This is likely due to the lower overhead required in cancelling a transaction rather than committing it. Performing a synchronisation between suppliers (to simulate a broker crash) did slow down these throughputs a bit, as the mechanism for checking other suppliers has some overhead as well. 
