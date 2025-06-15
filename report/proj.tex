@@ -44,34 +44,35 @@
 			\label{fig:arch}
 		\end{figure}
 		
-	
 	\section{Front-end Details}
-	The Front-End makes it possible for the clients to order their products via our service and will transfer the order data to the broker for further processing.
+	The front-end allows clients to order products via our service and transfers the order data to the broker for further processing.
 	
 	\subsection{Design}
-	The front-end is build as a String Boot application using the Thymeleaf server-side Java template engine which allows HTML to be correctly displayed in browsers. It uses the Bootstrap open-source CSS framework and the Animate On Scroll (AOS) javascript library for adding animations to the website. The front-end makes uses of Auth0's Role-Based Access Control making it possible for clients to log in on the website. Every client gets the `User' role automatically assigned when logging in for the first time. There is also a `Manager' role available with which the clients that have that role can access pages that are not allowed to access for normal clients.\\
+	The front-end is built as a Spring Boot application using the Thymeleaf server-side Java template engine, which enables proper rendering of HTML in browsers. It uses the open-source Bootstrap CSS framework and the Animate On Scroll (AOS) JavaScript library to add animations to the website. The front-end also makes use of Auth0's Role-Based Access Control (RBAC), allowing clients to log in to the website. Every client is automatically assigned the `User' role upon first login. There is also a `Manager' role available, which grants access to restricted pages not accessible to regular users.\\
 	\newline
-	When a client with only the `User' role wants to access a page only accessible for clients with the `Manager' role will be blocked off by the security filter chain and will be welcomed with an 403 access-denied error message on the website stating that the client does not have permission to view the particular page. There are also web-pages implemented for the other common HTTP error codes (400, 404 \& 500) and a general error page when the error does within those error codes. The website has multiple endpoints of which some a publicly accessible, some only when the client has been logged in and some are only accessible when the logged in client has the `Manager' role. The different endpoints are:
+	When a client with only the `User' role attempts to access a page restricted to the `Manager' role, the request is blocked by the security filter chain, and the client is shown a 403 access-denied error message indicating insufficient permissions. Additionally, custom error pages are implemented for common HTTP error codes (400, 404, and 500), as well as a general error page for other errors. \\
+	\newline
+	The website features multiple endpoints with different access levels: some are publicly accessible, others require login, and some are restricted to clients with the `Manager' role. The endpoints include:
 	
 	\begin{description}
-		\item[/]: The home page showing some general information. (publicly accessible)
-		\item[/products]: The products page which shows the products that are sold via our service sorted by suppier. (publicly accessible)
-		\item[/profile]: The profile page which shows details of the user provided by Auth0 like the given and last name, roles, email, etc. (accessible after logging in)
-		\item[/order/bicycle]: The first page of the order process where the client can choose which products he/she wants and the amount of every product from the bicycle supplier. (accessible after logging in)
-		\item[/order/led \& /order/battery]: The following pages of the order process where the client can select products from the other two suppliers; which are the LED-Strip and Battery suppliers. (accessible after logging in)
-		\item[/order/summary]: Gives a summary of all the selected products and provided the ability to actually order the produce when the client has selected some products or will show buttons to the different order pages so that the client can start ordering. (accessible after logging in)
-		\item[/orders]: Gives a list of all the orders made by the client. It shows 18 orders per page and the client can go through the pages using the navigation buttons at the bottom of the website. (accessible after logging in)
-		\item[/admin/orders]: Has the same functionality as the previous endpoint but now shows all the orders and the email address of the client of the order and is therefore only accessible after the client has logged in and has the `Manager' role assigned.
+		\item[/]: The home page displaying general information. (publicly accessible)
+		\item[/products]: The products page, showing products sold through our service, sorted by supplier. (publicly accessible)
+		\item[/profile]: The profile page displaying user details provided by Auth0, such as first name, last name, roles, email, etc. (accessible after logging in)
+		\item[/order/bicycle]: The first step in the ordering process where the client can choose products and quantities from the bicycle supplier. (accessible after logging in)
+		\item[/order/led \& /order/battery]: The next steps in the order process where the client can select products from the LED-strip and battery suppliers, respectively. (accessible after logging in)
+		\item[/order/summary]: Provides a summary of all selected products and allows the client to place the order if items have been selected. Otherwise, it displays links to begin ordering. (accessible after logging in)
+		\item[/orders]: Displays a paginated list (18 per page) of all orders made by the client, with navigation buttons for browsing. (accessible after logging in)
+		\item[/admin/orders]: Functions similarly to the previous endpoint but displays all client orders along with their email addresses. This endpoint is only accessible to clients with the `Manager' role. (requires login and `Manager' role)
 	\end{description}
 	
-	\noindent In the current implementation, the client does not need to provide a delivery address or payment information. However, this functionality can be easily added in the future when transitioning the system into a fully operational service. This could be achieved by introducing these fields on the `/order/summary' endpoint page, which the client would be required to fill in before placing an order. Currently, only logged-in clients are allowed to place orders. We use their email address to store the order, which enables clients with the `User' role to view their own order history.\\
+	\noindent In the current implementation, the client does not need to provide a delivery address or payment information. However, this functionality can be easily added in the future when transitioning the system into a fully operational service. This could be achieved by introducing these fields on the `/order/summary' endpoint page, which the client would be required to complete before placing an order. Currently, only logged-in clients are allowed to place orders. Their email address is used to store the order, allowing users with the `User' role to view their own order history.\\
 	\newline
-	When the client submits an order, the order data is stored in a SQL database, and the order ID is placed in an Azure Storage Queue. Both of these will be used by the broker to process the order, which will be discussed in more detail in the Broker Details subsection.\\
+	When a client submits an order, the order data is stored in a SQL database, and the order ID is placed in an Azure Storage Queue. Both of these components are used by the broker to process the order, which will be discussed in more detail in the \textit{Broker Details} subsection.\\
 	\newline
-	When a supplier is not available, the client can still order products from the other suppliers that are available while the website will show a notification on the order page of the specific not available supplier that the supplier is temporarily not available and a button to reload the page. When reloading the page, the selected items by the clients from the other available suppliers will still be selected as these are stored in a session attribute. Only when cancelling the order or actually submitting the order, this session attribute will be removed.
+	If a supplier is temporarily unavailable, clients can still order products from the remaining available suppliers. The order page for the unavailable supplier will display a notification indicating temporary unavailability, along with a button to reload the page. When the page is reloaded, previously selected products from available suppliers remain selected, as they are stored in a session attribute. This session attribute is only cleared when the client cancels or submits the order.
 	
 	\subsection{Deployment}
-	The front-end is deployed as a Spring Boot application running on an Azure VM (1 vCore, 1GB RAM) located in West Europe. It communicates with the broker through an Azure Storage Queue that is also hosted on Azure, also located in West-Europe. This provides reliable asynchronous messaging. The database between the front-end and the broker is a SQL database hosted by Azure in UK-South.
+	The front-end is deployed as a Spring Boot application running on an Azure virtual machine (1 vCore, 1 GB RAM) located in West Europe. It communicates with the broker via an Azure Storage Queue, also hosted in West Europe, ensuring reliable asynchronous messaging. The shared SQL database used by both the front-end and the broker is hosted by Azure in the UK South region.
 	
 	\section{Broker Details}
 		The broker acts as a central orchestrator between the client application and the supplier system. 
@@ -171,6 +172,11 @@
 			
 
 	\section{Cost overview}
+		\subsection{Front-End}
+			The front-end consists of a single Azure virtual machine (VM) and an Azure SQL Server \& Azure Storage Queue which the front-end shares with the broker. All of these instances are operating within cost-conscious constraints.\\
+			The VM on which the Spring Boot front-end application is running falls under Azure’s free tier, which offers 750 compute hours per month. If the front-end's usage surpasses this limit, it transitions to Azure’s entry-level paid tier to keep the application running at minimal cost. \\
+			The costs of the shared Azure SQL Server and an Azure Storage Queue is given in the next subsection.
+	
 		\subsection{Broker}
 			The broker consists of a single Azure virtual machine (VM), an Azure SQL Server and an Azure Storage Queue. All of these instances are operating within cost-conscious constraints. \\		
 			The VM on which the Spring Boot broker application is running falls under Azure’s free tier, which offers 750 compute hours per month. If the broker’s usage surpasses this limit, it transitions to Azure’s entry-level paid tier to keep the application running at minimal cost. \\		
@@ -182,6 +188,16 @@
 			Each of the three VMs benefits from Azure’s free tier, which provides up to 750 compute hours per month. This allocation is sufficient to run one VM continuously or distribute usage across multiple VMs with careful scheduling. Once the 750-hour limit is exceeded in any given billing cycle, the VMs automatically transition to Azure’s lowest-cost paid tier. This tier continues to offer basic compute capabilities at a minimal cost, ensuring that the infrastructure remains economically sustainable even under moderate usage.\\
 			Similarly, the MySQL database is provisioned under Azure’s free tier for managed databases. It remains free until it exceeds the usage limits defined by the 750-hour threshold. Upon reaching this limit, the database instance shifts to the lowest available pricing tier, maintaining essential functionality while controlling costs.\\
 			By leveraging Azure’s free tier and its seamless transition to cost-effective paid options, the supplier infrastructure is able to support operational demands with minimal upfront expenditure. This approach allows for scalability and consistent performance while keeping cloud resource costs predictable and manageable as usage grows.
+			
+	\section{Details for accessing the service}
+	
+	\begin{itemize}
+		\item URL - \url{https://thebikerboys.westeurope.cloudapp.azure.com/}
+		\item Email address - wout.lyen@student.kuleuven.be
+		\item Password - Dsgt1234!
+	\end{itemize}
+	
+	\noindent The provided account has both the `User' and `Manager' role assigned. To experience the service as a regular client with only the `User' role, feel free to create a new account or sign up using Google.
 	
 \newpage
   \section{Extra information}
